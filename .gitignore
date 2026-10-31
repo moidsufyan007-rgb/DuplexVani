@@ -1,0 +1,21 @@
+# Environment variables and API keys
+.env
+.env.local
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.pytest_cache/
+
+# Temporary audio files
+*.wav
+*.mp3
+temp_synth.wav
+
+# OS files
+.DS_Store
+Thumbs.db
