@@ -23,16 +23,29 @@
         </div>
         <div class="brand-meta">
           <h1>DuplexVani <span class="badge-sub">Full-Duplex</span></h1>
-          <p>Powered by Gnani AI • Prisma STT & Timbre TTS</p>
+          <p>Powered by Gnani AI • Prisma STT & Timbre TTS (Male: Devansh)</p>
         </div>
       </div>
 
       <div class="header-status">
-        <div class="model-tags">
-          <span class="tag">🎙️ Prisma STT</span>
-          <span class="tag">🔊 Timbre TTS</span>
-          <span class="tag tag-accent">⚡ Sub-50ms Barge-In</span>
+        <!-- Language Switcher Dropdown -->
+        <div class="lang-box">
+          <label for="langSelect" class="lang-label">Lang:</label>
+          <select id="langSelect" class="lang-dropdown">
+            <option value="hi-IN" selected>🇮🇳 Hindi / Hinglish</option>
+            <option value="en-IN">🇬🇧 Indian English</option>
+            <option value="te-IN">🇮🇳 Telugu (తెలుగు)</option>
+            <option value="ta-IN">🇮🇳 Tamil (தமிழ்)</option>
+            <option value="kn-IN">🇮🇳 Kannada (ಕನ್ನಡ)</option>
+            <option value="mr-IN">🇮🇳 Marathi (मराठी)</option>
+          </select>
         </div>
+
+        <div class="model-tags">
+          <span class="tag">🎙️ Prisma</span>
+          <span class="tag">🔊 Devansh (Male)</span>
+        </div>
+
         <div class="connection-pill" id="connPill">
           <span class="dot"></span>
           <span id="connStatusText">Connecting...</span>
@@ -64,7 +77,7 @@
         </div>
 
         <div class="live-subtitle" id="subtitleBox">
-          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak in Hinglish or regional languages...</p>
+          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak in your preferred language...</p>
         </div>
 
         <!-- Primary Action Controls -->
@@ -92,8 +105,8 @@
 
         <!-- Quick Utterance Chips for Live Video Demo -->
         <div class="demo-prompts">
-          <span class="prompt-label">Quick Demo Hinglish Prompts:</span>
-          <div class="chips-row">
+          <span class="prompt-label">Quick Demo Prompts:</span>
+          <div class="chips-row" id="chipsRow">
             <button class="chip" data-text="Namaste, aap kaun hain aur aap kaise kaam karte hain?">"Aap kaun hain?"</button>
             <button class="chip" data-text="Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?">"Mandi Bhav Batao"</button>
             <button class="chip" data-text="Ramesh bhai ke hisaab mein do packet doodh note kar lo udhaar.">"Kirana Khata Note Karo"</button>
@@ -137,7 +150,7 @@
           <div class="feed-messages" id="feedMessages">
             <div class="feed-item system-item">
               <span class="feed-role">SYSTEM</span>
-              <p>DuplexVani audio pipeline initialized. Press Start to begin bi-directional streaming.</p>
+              <p>DuplexVani audio pipeline initialized with Devansh (Male Voice). Select language & press Start.</p>
             </div>
           </div>
         </div>

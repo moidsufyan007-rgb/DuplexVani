@@ -36,10 +36,11 @@ async def health():
         "status": "healthy",
         "project": settings.PROJECT_NAME,
         "simulated_mode": gnani_client.simulated,
+        "default_voice": gnani_client.default_male_voice,
         "models": {
-            "stt": "Gnani Prisma",
-            "tts": "Gnani Timbre",
-            "llm": "Conversational Hinglish Core"
+            "stt": "Gnani Prisma v3.0",
+            "tts": f"Gnani Timbre v3.0 ({gnani_client.default_male_voice})",
+            "llm": "Conversational Indic Multi-lingual Core"
         }
     }
 
@@ -47,12 +48,9 @@ async def process_speech_turn(
     websocket: WebSocket,
     manager: ConversationManager,
     user_text: str,
-    audio_b64: str = None
+    audio_b64: str = None,
+    language: str = "hi-IN"
 ):
-    """
-    Handles a full speech turn asynchronously.
-    Can be cancelled instantly by asyncio if the user interrupts.
-    """
     session_id = manager.session_id
     try:
         # 1. Transcribe audio if raw audio was sent
@@ -60,7 +58,7 @@ async def process_speech_turn(
             manager.set_state(VoiceState.PROCESSING)
             await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
             audio_bytes = base64.b64decode(audio_b64)
-            user_text = await gnani_client.transcribe_audio(audio_bytes, language=settings.DEFAULT_LANGUAGE)
+            user_text = await gnani_client.transcribe_audio(audio_bytes, language=language)
 
         if not user_text.strip():
             manager.set_state(VoiceState.LISTENING)
@@ -74,12 +72,17 @@ async def process_speech_turn(
             "text": user_text
         })
 
-        # 2. Generate response via LLM Brain
+        # 2. Generate response via Multilingual LLM Brain
         manager.set_state(VoiceState.PROCESSING)
         await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
 
         was_interrupted = manager.is_interrupted()
-        reply_text = await llm_service.generate_response(user_text, manager.history, was_interrupted=was_interrupted)
+        reply_text = await llm_service.generate_response(
+            user_text, 
+            manager.history, 
+            was_interrupted=was_interrupted,
+            language=language
+        )
 
         # 3. Notify client that assistant speech is beginning
         playback_id = f"play_{int(time.time()*1000)}"
@@ -91,8 +94,12 @@ async def process_speech_turn(
             "state": VoiceState.SPEAKING.value
         })
 
-        # 4. Synthesize voice audio via Gnani Timbre
-        audio_bytes = await gnani_client.synthesize_speech(reply_text, language=settings.DEFAULT_LANGUAGE)
+        # 4. Synthesize voice audio via Gnani Timbre (Male Voice)
+        audio_bytes = await gnani_client.synthesize_speech(
+            reply_text, 
+            language=language, 
+            voice=gnani_client.default_male_voice
+        )
 
         # 5. Deliver audio payload to client
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
@@ -123,6 +130,7 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
         "session_id": session_id,
         "state": VoiceState.IDLE.value,
         "simulated": gnani_client.simulated,
+        "voice": gnani_client.default_male_voice,
         "message": "Connected to DuplexVani Real-Time Voice Gateway"
     })
 
@@ -136,7 +144,6 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
             if msg_type == "USER_INTERRUPT":
                 client_ts = data.get("timestamp")
 
-                # Instantly abort any active generation or audio task
                 if active_turn_task and not active_turn_task.done():
                     active_turn_task.cancel()
                     active_turn_task = None
@@ -153,14 +160,13 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
             elif msg_type == "USER_SPEECH_FINAL":
                 user_text = data.get("text", "")
                 audio_b64 = data.get("audio_b64")
+                language = data.get("language", settings.DEFAULT_LANGUAGE)
 
-                # Cancel prior task if still running
                 if active_turn_task and not active_turn_task.done():
                     active_turn_task.cancel()
 
-                # Spawn new turn task concurrently
                 active_turn_task = asyncio.create_task(
-                    process_speech_turn(websocket, manager, user_text, audio_b64)
+                    process_speech_turn(websocket, manager, user_text, audio_b64, language=language)
                 )
 
             # 3. PLAYBACK FINISHED NOTIFICATION FROM CLIENT
@@ -190,6 +196,6 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
             active_turn_task.cancel()
         logger.exception(f"Unexpected error in websocket session: {e}")
 
-# Mount frontend directory for browser UI
+# Serve frontend web app
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

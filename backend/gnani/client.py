@@ -11,7 +11,7 @@ class GnaniVoiceClient:
     """
     Official Client for Gnani AI / Vachana Voice Models:
     - Prisma v3.0 STT: Low-latency Indic & Hinglish speech transcription
-    - Timbre v3.0 TTS: Natural Indic voice synthesis (Shivani, Devansh, etc.)
+    - Timbre v3.0 TTS: Natural Indic voice synthesis (Devansh, Avinash, etc.)
     """
 
     def __init__(self):
@@ -19,10 +19,11 @@ class GnaniVoiceClient:
         self.prisma_url = settings.GNANI_PRISMA_STT_URL
         self.timbre_url = settings.GNANI_TIMBRE_TTS_URL
         self.simulated = settings.USE_SIMULATED_GNANI or not bool(self.api_key)
+        self.default_male_voice = "Devansh" # Supported male voices: Devansh, Avinash, Shubham, Prakash, Yash
 
     async def transcribe_audio(self, audio_bytes: bytes, language: str = "hi-IN") -> str:
         """
-        Sends audio to Gnani Prisma STT for transcription.
+        Sends audio to Gnani Prisma STT for transcription in the target language.
         """
         if not self.simulated and self.api_key:
             try:
@@ -45,12 +46,14 @@ class GnaniVoiceClient:
 
         return "Namaste! Main DuplexVani hoon. Aap mujhe bolte hue kabhi bhi interrupt kar sakte hain!"
 
-    async def synthesize_speech(self, text: str, language: str = "hi-IN") -> bytes:
+    async def synthesize_speech(self, text: str, language: str = "hi-IN", voice: Optional[str] = None) -> bytes:
         """
-        Calls Gnani Timbre TTS at native 48,000 Hz human voice cadence.
-        Wraps PCM into a clean 48kHz WAV container.
+        Calls Gnani Timbre TTS using crisp male voice ('Devansh') at native 48,000 Hz.
+        Supports regional Indic languages (Hindi, Telugu, Tamil, Kannada, Marathi, English, etc.)
         """
         sample_rate = 48000
+        chosen_voice = voice or self.default_male_voice
+
         if not self.simulated and self.api_key:
             try:
                 headers = {
@@ -60,10 +63,10 @@ class GnaniVoiceClient:
                 payload = {
                     "text": text,
                     "model": "timbre-v3.0",
-                    "voice": "Shivani",
+                    "voice": chosen_voice,
                     "language": language,
                     "sample_rate": sample_rate,
-                    "speed": 1.1  # Natural lively conversational pace
+                    "speed": 1.15  # Snappy, natural male cadence
                 }
                 async with httpx.AsyncClient(timeout=12.0) as client:
                     resp = await client.post(self.timbre_url, headers=headers, json=payload)
@@ -122,7 +125,7 @@ class GnaniVoiceClient:
             frames = bytearray()
             for i in range(num_samples):
                 t = i / sample_rate
-                sample = 0.3 * math.sin(2 * math.pi * 240 * t) + 0.15 * math.sin(2 * math.pi * 480 * t)
+                sample = 0.3 * math.sin(2 * math.pi * 180 * t) + 0.15 * math.sin(2 * math.pi * 360 * t)
                 envelope = math.sin(math.pi * (i / num_samples))
                 val = int(sample * envelope * 32767)
                 frames.extend(struct.pack('<h', val))

@@ -1,5 +1,6 @@
 /**
  * DuplexVani — Client Audio Engine & Full-Duplex Interruption Handler
+ * Supports Multilingual Indic Voice & Male Timbre (Devansh)
  */
 
 class DuplexVaniClient {
@@ -17,6 +18,7 @@ class DuplexVaniClient {
     this.rtt = 0;
     this.speechRec = null;
     this.speechPermissionDenied = false;
+    this.selectedLanguage = "hi-IN";
     
     // UI Elements
     this.stateBadge = document.getElementById("stateBadge");
@@ -35,6 +37,8 @@ class DuplexVaniClient {
     this.rttDisplay = document.getElementById("rttDisplay");
     this.feedMessages = document.getElementById("feedMessages");
     this.clearFeedBtn = document.getElementById("clearFeedBtn");
+    this.langSelect = document.getElementById("langSelect");
+    this.chipsRow = document.getElementById("chipsRow");
     this.canvas = document.getElementById("visualizerCanvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
@@ -72,7 +76,7 @@ class DuplexVaniClient {
     };
 
     this.ws.onerror = (err) => {
-      console.warn("WebSocket Error (ensure uvicorn server is running on port 8000):", err);
+      console.warn("WebSocket Error:", err);
     };
 
     this.ws.onmessage = (event) => {
@@ -103,7 +107,7 @@ class DuplexVaniClient {
       case "HANDSHAKE":
         this.sessionIdBadge.innerText = msg.session_id;
         this.setState("IDLE");
-        this.addFeedItem("system", `Session initialized. Ready for speech.`);
+        this.addFeedItem("system", `Session initialized with Devansh (Male Voice).`);
         break;
 
       case "STATE_CHANGE":
@@ -135,7 +139,7 @@ class DuplexVaniClient {
       case "ASSISTANT_REPLY_START":
         this.setState("SPEAKING");
         this.activePlaybackId = msg.playback_id;
-        this.subtitleText.innerText = `Assistant: "${msg.text}"`;
+        this.subtitleText.innerText = `Assistant (Devansh): "${msg.text}"`;
         this.addFeedItem("assistant", msg.text, msg.playback_id);
         this.interruptBtn.disabled = false;
         break;
@@ -154,12 +158,10 @@ class DuplexVaniClient {
     }
   }
 
-  // --- State Visual Management ---
   setState(state) {
     this.currentState = state;
     this.stateText.innerText = state;
     
-    // Clear classes
     this.stateBadge.className = "state-indicator";
     this.visualOrb.className = "orb-container";
 
@@ -182,9 +184,7 @@ class DuplexVaniClient {
   // --- Instant Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
-    console.log("⚡ BARGE-IN TRIGGERED");
 
-    // 1. Instantly kill audio playback
     if (this.currentSource) {
       try {
         this.currentSource.stop(0);
@@ -193,7 +193,6 @@ class DuplexVaniClient {
       this.currentSource = null;
     }
 
-    // 2. Mark item as cut off
     if (this.activePlaybackId) {
       const activeEl = document.querySelector(`[data-playback="${this.activePlaybackId}"]`);
       if (activeEl) {
@@ -207,7 +206,6 @@ class DuplexVaniClient {
 
     this.activePlaybackId = null;
 
-    // 3. Dispatch interrupt signal to server
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
         type: "USER_INTERRUPT",
@@ -216,7 +214,7 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Robust Audio Playback Engine (WAV + Direct PCM fallback) ---
+  // --- Audio Playback Engine (48kHz WAV + Direct PCM) ---
   async playAudioBase64(base64Data, playbackId) {
     try {
       if (!this.audioCtx) {
@@ -235,12 +233,9 @@ class DuplexVaniClient {
 
       let audioBuffer = null;
 
-      // Method 1: Decode standard container (WAV)
       try {
         audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer.slice(0));
       } catch (decodeErr) {
-        console.warn("Standard decode failed, falling back to direct PCM 48kHz decode:", decodeErr);
-        // Method 2: Fallback to direct 16-bit linear PCM at 48000Hz
         const int16Array = new Int16Array(bytes.buffer);
         audioBuffer = this.audioCtx.createBuffer(1, int16Array.length, 48000);
         const channelData = audioBuffer.getChannelData(0);
@@ -250,12 +245,10 @@ class DuplexVaniClient {
       }
 
       if (!audioBuffer) {
-        console.error("Unable to create audio buffer from response");
         this.setState("LISTENING");
         return;
       }
 
-      // Stop any existing sound
       if (this.currentSource) {
         try { this.currentSource.stop(0); } catch(e){}
       }
@@ -263,11 +256,9 @@ class DuplexVaniClient {
       const source = this.audioCtx.createBufferSource();
       source.buffer = audioBuffer;
 
-      // Volume Gain Node
       const gainNode = this.audioCtx.createGain();
       gainNode.gain.value = 1.0;
 
-      // Connect to analyser for live waveform pulse
       if (this.analyser) {
         source.connect(this.analyser);
       }
@@ -287,7 +278,6 @@ class DuplexVaniClient {
 
       this.currentSource = source;
       source.start(0);
-      console.log(`🔊 Audio playback started successfully for ID: ${playbackId}`);
 
     } catch (err) {
       console.error("Audio playback error:", err);
@@ -326,7 +316,7 @@ class DuplexVaniClient {
       this.toggleMicBtn.classList.add("recording");
       this.toggleMicBtnText.innerText = "Stop Session";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Listening... Speak in Hindi, English, or Hinglish!";
+      this.subtitleText.innerText = "Listening... Speak now!";
 
       this.startSpeechRecognition();
 
@@ -367,7 +357,7 @@ class DuplexVaniClient {
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = "hi-IN";
+    rec.lang = this.selectedLanguage;
 
     rec.onresult = (event) => {
       if (this.currentState === "SPEAKING") {
@@ -385,7 +375,6 @@ class DuplexVaniClient {
     };
 
     rec.onerror = (e) => {
-      console.log("Speech recognition notice:", e.error);
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         this.speechPermissionDenied = true;
       }
@@ -404,7 +393,6 @@ class DuplexVaniClient {
   }
 
   sendFinalUtterance(text) {
-    // Ensure AudioContext is resumed so speaker output is ready
     if (this.audioCtx && this.audioCtx.state === "suspended") {
       this.audioCtx.resume();
     }
@@ -412,11 +400,69 @@ class DuplexVaniClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
         type: "USER_SPEECH_FINAL",
-        text: text
+        text: text,
+        language: this.selectedLanguage
       }));
       this.turnCount++;
       this.turnCountEl.innerText = this.turnCount;
     }
+  }
+
+  // --- Dynamic Language Prompts ---
+  updateLanguagePrompts(lang) {
+    this.selectedLanguage = lang;
+    if (this.speechRec) {
+      this.speechRec.lang = lang;
+    }
+
+    let prompts = [];
+    if (lang === "te-IN") {
+      prompts = [
+        { label: '"Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
+        { label: '"Mandi Bhavam"', text: "Indore Mandi lo eeroju godhumalu mariyu ullipayala dharalu ela unnaayi?" },
+        { label: '🛑 "Aagandi, nannu cheppanivvandi!"', text: "Arre aagandi, modata naaku cheppanivvandi!", barge: true }
+      ];
+    } else if (lang === "ta-IN") {
+      prompts = [
+        { label: '"Neengal yaar?"', text: "Vanakkam, neengal yaar matrum eppadi velai seigireergal?" },
+        { label: '"Sandhai Nilavaram"', text: "Inraiya sandhai nilavaram eppadi ulladhu?" },
+        { label: '🛑 "Nillungal, naan solgiren!"', text: "Arre nillungal, naan mudhalil pesugiren!", barge: true }
+      ];
+    } else if (lang === "en-IN") {
+      prompts = [
+        { label: '"Who are you?"', text: "Hello, who are you and how do you work?" },
+        { label: '"Market Rates"', text: "What are the wheat and onion commodity prices today?" },
+        { label: '🛑 "Wait, listen to me first!"', text: "Wait, hold on, listen to me first!", barge: true }
+      ];
+    } else {
+      // Default Hindi / Hinglish
+      prompts = [
+        { label: '"Aap kaun hain?"', text: "Namaste, aap kaun hain aur aap kaise kaam karte hain?" },
+        { label: '"Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
+        { label: '"Kirana Khata Note Karo"', text: "Ramesh bhai ke hisaab mein do packet doodh note kar lo udhaar." },
+        { label: '🛑 "Arre ruko, meri baat suno!"', text: "Arre ruko, pehle meri baat suno!", barge: true }
+      ];
+    }
+
+    this.chipsRow.innerHTML = "";
+    prompts.forEach(p => {
+      const btn = document.createElement("button");
+      btn.className = `chip ${p.barge ? "chip-barge" : ""}`;
+      btn.setAttribute("data-text", p.text);
+      btn.innerText = p.label;
+      btn.addEventListener("click", () => {
+        if (this.audioCtx && this.audioCtx.state === "suspended") {
+          this.audioCtx.resume();
+        }
+        if (p.barge) {
+          this.triggerBargeIn();
+          setTimeout(() => this.sendFinalUtterance(p.text), 300);
+        } else {
+          this.sendFinalUtterance(p.text);
+        }
+      });
+      this.chipsRow.appendChild(btn);
+    });
   }
 
   // --- Waveform Canvas Animation ---
@@ -498,22 +544,12 @@ class DuplexVaniClient {
       }
     });
 
-    document.querySelectorAll(".chip").forEach(chip => {
-      chip.addEventListener("click", () => {
-        // Resume audio context on click
-        if (this.audioCtx && this.audioCtx.state === "suspended") {
-          this.audioCtx.resume();
-        }
-
-        const text = chip.getAttribute("data-text");
-        if (chip.classList.contains("chip-barge")) {
-          this.triggerBargeIn();
-          setTimeout(() => this.sendFinalUtterance(text), 300);
-        } else {
-          this.sendFinalUtterance(text);
-        }
-      });
+    this.langSelect.addEventListener("change", (e) => {
+      this.updateLanguagePrompts(e.target.value);
     });
+
+    // Initial prompts
+    this.updateLanguagePrompts(this.selectedLanguage);
 
     this.clearFeedBtn.addEventListener("click", () => {
       this.feedMessages.innerHTML = "";
