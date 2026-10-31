@@ -9,9 +9,9 @@ logger = logging.getLogger("DuplexVani.GnaniClient")
 
 class GnaniVoiceClient:
     """
-    Bridge client to Gnani AI voice models:
-    - Prisma STT: Speech to text for Indian English and Hinglish.
-    - Timbre TTS: Natural Indic text to speech synthesis.
+    Official Client for Gnani AI / Vachana Voice Models:
+    - Prisma v3.0 STT: Low-latency Indic & Hinglish speech transcription
+    - Timbre v3.0 TTS: Natural Indic voice synthesis (Shivani, Devansh, etc.)
     """
 
     def __init__(self):
@@ -20,15 +20,20 @@ class GnaniVoiceClient:
         self.timbre_url = settings.GNANI_TIMBRE_TTS_URL
         self.simulated = settings.USE_SIMULATED_GNANI or not bool(self.api_key)
 
-    async def transcribe_audio(self, audio_bytes: bytes, language: str = "hi") -> str:
+    async def transcribe_audio(self, audio_bytes: bytes, language: str = "hi-IN") -> str:
         """
         Sends audio to Gnani Prisma STT for transcription.
         """
         if not self.simulated and self.api_key:
             try:
-                headers = {"Authorization": f"Bearer {self.api_key}"}
-                files = {"audio": ("speech.wav", audio_bytes, "audio/wav")}
-                data = {"language": language, "model": "prisma-v1"}
+                headers = {
+                    "X-API-Key-ID": self.api_key
+                }
+                files = {"audio_file": ("speech.wav", audio_bytes, "audio/wav")}
+                data = {
+                    "model": "prisma-v3.0",
+                    "language_code": language
+                }
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.post(self.prisma_url, headers=headers, files=files, data=data)
@@ -40,43 +45,40 @@ class GnaniVoiceClient:
             except Exception as e:
                 logger.error(f"Live Prisma STT call failed: {e}")
 
-        # Credit-safe fallback: Returns conversational Hinglish text
+        # Fallback response
         return "Namaste! Main DuplexVani hoon. Aap mujhe bolte hue kabhi bhi interrupt kar sakte hain!"
 
-    async def synthesize_speech(self, text: str, language: str = "hi") -> bytes:
+    async def synthesize_speech(self, text: str, language: str = "hi-IN") -> bytes:
         """
         Sends text to Gnani Timbre TTS to receive synthesized Indic audio.
+        Uses verified 'Shivani' voice on timbre-v3.0.
         """
         if not self.simulated and self.api_key:
             try:
                 headers = {
-                    "Authorization": f"Bearer {self.api_key}",
+                    "X-API-Key-ID": self.api_key,
                     "Content-Type": "application/json"
                 }
                 payload = {
                     "text": text,
+                    "model": "timbre-v3.0",
+                    "voice": "Shivani",
                     "language": language,
-                    "voice": "female_indic_01",
-                    "speed": 1.0,
-                    "format": "wav"
+                    "speed": 1.0
                 }
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.post(self.timbre_url, headers=headers, json=payload)
                     if resp.status_code == 200:
                         return resp.content
                     else:
-                        logger.warning(f"Timbre returned status {resp.status_code}: {resp.text}")
+                        logger.warning(f"Gnani Timbre returned status {resp.status_code}: {resp.text}")
             except Exception as e:
                 logger.error(f"Live Timbre TTS call failed: {e}")
 
-        # Credit-safe fallback: Generates a playable WAV file locally
+        # Local audio synthesis fallback (credit shield)
         return self._generate_local_audio(text)
 
     def _generate_local_audio(self, text: str) -> bytes:
-        """
-        Generates clean synthesized WAV audio using local speech engine
-        so playback and barge-in can be tested without consuming Gnani credits.
-        """
         try:
             import pyttsx3
             import os
@@ -98,7 +100,6 @@ class GnaniVoiceClient:
             return self._generate_fallback_carrier(len(text))
 
     def _generate_fallback_carrier(self, char_count: int) -> bytes:
-        """Generates a pleasant harmonic audio carrier tone if pyttsx3 is unavailable"""
         import math
         import struct
 
