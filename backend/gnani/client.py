@@ -26,9 +26,7 @@ class GnaniVoiceClient:
         """
         if not self.simulated and self.api_key:
             try:
-                headers = {
-                    "X-API-Key-ID": self.api_key
-                }
+                headers = {"X-API-Key-ID": self.api_key}
                 files = {"audio_file": ("speech.wav", audio_bytes, "audio/wav")}
                 data = {
                     "model": "prisma-v3.0",
@@ -50,9 +48,9 @@ class GnaniVoiceClient:
 
     async def synthesize_speech(self, text: str, language: str = "hi-IN") -> bytes:
         """
-        Sends text to Gnani Timbre TTS to receive synthesized Indic audio.
-        Uses verified 'Shivani' voice on timbre-v3.0.
+        Calls Gnani Timbre TTS and wraps the raw PCM samples into a standard playable WAV container.
         """
+        sample_rate = 24000
         if not self.simulated and self.api_key:
             try:
                 headers = {
@@ -64,18 +62,29 @@ class GnaniVoiceClient:
                     "model": "timbre-v3.0",
                     "voice": "Shivani",
                     "language": language,
+                    "sample_rate": sample_rate,
                     "speed": 1.0
                 }
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=12.0) as client:
                     resp = await client.post(self.timbre_url, headers=headers, json=payload)
                     if resp.status_code == 200:
-                        return resp.content
+                        raw_pcm = resp.content
+                        # If Gnani returned raw PCM, package it into a standard 44-byte RIFF WAV
+                        if not raw_pcm.startswith(b'RIFF'):
+                            wav_buf = io.BytesIO()
+                            with wave.open(wav_buf, 'wb') as wav:
+                                wav.setnchannels(1)        # Mono
+                                wav.setsampwidth(2)        # 16-bit linear PCM
+                                wav.setframerate(sample_rate)
+                                wav.writeframes(raw_pcm)
+                            return wav_buf.getvalue()
+                        return raw_pcm
                     else:
                         logger.warning(f"Gnani Timbre returned status {resp.status_code}: {resp.text}")
             except Exception as e:
                 logger.error(f"Live Timbre TTS call failed: {e}")
 
-        # Local audio synthesis fallback (credit shield)
+        # Fallback local synthesis
         return self._generate_local_audio(text)
 
     def _generate_local_audio(self, text: str) -> bytes:

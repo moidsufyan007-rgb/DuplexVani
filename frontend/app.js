@@ -216,7 +216,7 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Audio Playback Engine ---
+  // --- Robust Audio Playback Engine (WAV + Direct PCM fallback) ---
   async playAudioBase64(base64Data, playbackId) {
     try {
       if (!this.audioCtx) {
@@ -233,8 +233,29 @@ class DuplexVaniClient {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      const audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer);
-      
+      let audioBuffer = null;
+
+      // Method 1: Decode standard container (WAV)
+      try {
+        audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer.slice(0));
+      } catch (decodeErr) {
+        console.warn("Standard decode failed, falling back to direct PCM 24kHz decode:", decodeErr);
+        // Method 2: Fallback to direct 16-bit linear PCM at 24000Hz
+        const int16Array = new Int16Array(bytes.buffer);
+        audioBuffer = this.audioCtx.createBuffer(1, int16Array.length, 24000);
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < int16Array.length; i++) {
+          channelData[i] = int16Array[i] / 32768.0;
+        }
+      }
+
+      if (!audioBuffer) {
+        console.error("Unable to create audio buffer from response");
+        this.setState("LISTENING");
+        return;
+      }
+
+      // Stop any existing sound
       if (this.currentSource) {
         try { this.currentSource.stop(0); } catch(e){}
       }
@@ -242,10 +263,16 @@ class DuplexVaniClient {
       const source = this.audioCtx.createBufferSource();
       source.buffer = audioBuffer;
 
+      // Volume Gain Node
+      const gainNode = this.audioCtx.createGain();
+      gainNode.gain.value = 1.0;
+
+      // Connect to analyser for live waveform pulse
       if (this.analyser) {
         source.connect(this.analyser);
       }
-      source.connect(this.audioCtx.destination);
+      source.connect(gainNode);
+      gainNode.connect(this.audioCtx.destination);
 
       source.onended = () => {
         if (this.activePlaybackId === playbackId) {
@@ -260,6 +287,7 @@ class DuplexVaniClient {
 
       this.currentSource = source;
       source.start(0);
+      console.log(`🔊 Audio playback started successfully for ID: ${playbackId}`);
 
     } catch (err) {
       console.error("Audio playback error:", err);
@@ -285,12 +313,10 @@ class DuplexVaniClient {
         await this.audioCtx.resume();
       }
 
-      // Check mic permission cleanly
       if (!this.micStream) {
         this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
 
-      // Setup analyser for visualization
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
@@ -305,12 +331,12 @@ class DuplexVaniClient {
       this.startSpeechRecognition();
 
     } catch (err) {
-      console.warn("Microphone not available, using prompt mode:", err);
+      console.warn("Microphone not available, prompt mode active:", err);
       this.isRecording = true;
       this.toggleMicBtn.classList.add("recording");
       this.toggleMicBtnText.innerText = "Stop Session";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Session active. Click any prompt chip below or use keyboard!";
+      this.subtitleText.innerText = "Session active. Click any prompt chip below!";
     }
   }
 
@@ -361,7 +387,6 @@ class DuplexVaniClient {
     rec.onerror = (e) => {
       console.log("Speech recognition notice:", e.error);
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        // Prevent aggressive re-prompt loop
         this.speechPermissionDenied = true;
       }
     };
@@ -379,6 +404,11 @@ class DuplexVaniClient {
   }
 
   sendFinalUtterance(text) {
+    // Ensure AudioContext is resumed so speaker output is ready
+    if (this.audioCtx && this.audioCtx.state === "suspended") {
+      this.audioCtx.resume();
+    }
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
         type: "USER_SPEECH_FINAL",
@@ -470,6 +500,11 @@ class DuplexVaniClient {
 
     document.querySelectorAll(".chip").forEach(chip => {
       chip.addEventListener("click", () => {
+        // Resume audio context on click
+        if (this.audioCtx && this.audioCtx.state === "suspended") {
+          this.audioCtx.resume();
+        }
+
         const text = chip.getAttribute("data-text");
         if (chip.classList.contains("chip-barge")) {
           this.triggerBargeIn();
