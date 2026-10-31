@@ -1,6 +1,9 @@
 /**
  * DuplexVani — Client Audio Engine & Full-Duplex Interruption Handler
- * Supports Multilingual Indic Voice & Male Timbre (Devansh)
+ * Supports:
+ * - Credit Shield (Free Simulation) vs. Live Gnani AI Mode Switch
+ * - Direct Microphone Audio Streaming to Gnani Prisma STT
+ * - Multilingual Indic Voice & Male Timbre (Devansh)
  */
 
 class DuplexVaniClient {
@@ -8,6 +11,8 @@ class DuplexVaniClient {
     this.ws = null;
     this.audioCtx = null;
     this.micStream = null;
+    this.mediaRecorder = null;
+    this.audioChunks = [];
     this.analyser = null;
     this.currentSource = null;
     this.isRecording = false;
@@ -19,6 +24,7 @@ class DuplexVaniClient {
     this.speechRec = null;
     this.speechPermissionDenied = false;
     this.selectedLanguage = "hi-IN";
+    this.isLiveMode = false; // Default: Credit Shield (Free Mode)
     
     // UI Elements
     this.stateBadge = document.getElementById("stateBadge");
@@ -39,6 +45,9 @@ class DuplexVaniClient {
     this.clearFeedBtn = document.getElementById("clearFeedBtn");
     this.langSelect = document.getElementById("langSelect");
     this.chipsRow = document.getElementById("chipsRow");
+    this.modeToggleBtn = document.getElementById("modeToggleBtn");
+    this.modeIcon = document.getElementById("modeIcon");
+    this.modeText = document.getElementById("modeText");
     this.canvas = document.getElementById("visualizerCanvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
@@ -107,7 +116,12 @@ class DuplexVaniClient {
       case "HANDSHAKE":
         this.sessionIdBadge.innerText = msg.session_id;
         this.setState("IDLE");
-        this.addFeedItem("system", `Session initialized with Devansh (Male Voice).`);
+        this.addFeedItem("system", `Session initialized. Mode: ${this.isLiveMode ? 'Live Gnani AI' : 'Credit Shield (Free)'}`);
+        break;
+
+      case "MODE_UPDATED":
+        this.isLiveMode = msg.is_live;
+        this.updateModeUI();
         break;
 
       case "STATE_CHANGE":
@@ -132,15 +146,17 @@ class DuplexVaniClient {
         break;
 
       case "TRANSCRIPTION_RESULT":
-        this.addFeedItem("user", msg.text);
+        const engineLabel = msg.engine ? ` [${msg.engine}]` : "";
+        this.addFeedItem("user", `${msg.text}${engineLabel}`);
         this.subtitleText.innerText = `You: "${msg.text}"`;
         break;
 
       case "ASSISTANT_REPLY_START":
         this.setState("SPEAKING");
         this.activePlaybackId = msg.playback_id;
+        const ttsEngine = msg.engine ? ` (${msg.engine})` : "";
         this.subtitleText.innerText = `Assistant (Devansh): "${msg.text}"`;
-        this.addFeedItem("assistant", msg.text, msg.playback_id);
+        this.addFeedItem("assistant", `${msg.text}${ttsEngine}`, msg.playback_id);
         this.interruptBtn.disabled = false;
         break;
 
@@ -178,6 +194,34 @@ class DuplexVaniClient {
       this.interruptBtn.disabled = true;
     } else {
       this.interruptBtn.disabled = true;
+    }
+  }
+
+  // --- Mode Toggle (Credit Shield vs Live Gnani) ---
+  toggleMode() {
+    this.isLiveMode = !this.isLiveMode;
+    this.updateModeUI();
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: "SET_LIVE_MODE",
+        is_live: this.isLiveMode
+      }));
+    }
+
+    const modeName = this.isLiveMode ? "⚡ Live Gnani AI (Prisma & Timbre)" : "🛡️ Credit Shield (Free Mode)";
+    this.addFeedItem("system", `Switched mode to: ${modeName}`);
+  }
+
+  updateModeUI() {
+    if (this.isLiveMode) {
+      this.modeToggleBtn.className = "mode-pill mode-live";
+      this.modeIcon.innerText = "⚡";
+      this.modeText.innerText = "Live Gnani AI (Active)";
+    } else {
+      this.modeToggleBtn.className = "mode-pill mode-shield";
+      this.modeIcon.innerText = "🛡️";
+      this.modeText.innerText = "Credit Shield (Free)";
     }
   }
 
@@ -285,7 +329,7 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Speech & Mic Input ---
+  // --- Microphone & Audio Capture (MediaRecorder) ---
   async toggleMic() {
     if (this.isRecording) {
       this.stopMic();
@@ -304,19 +348,34 @@ class DuplexVaniClient {
       }
 
       if (!this.micStream) {
-        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.micStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 } 
+        });
       }
 
+      // Analyser for visual waves
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
       micSource.connect(this.analyser);
 
+      // MediaRecorder to record audio for Prisma STT
+      this.audioChunks = [];
+      try {
+        this.mediaRecorder = new MediaRecorder(this.micStream);
+        this.mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) this.audioChunks.push(e.data);
+        };
+        this.mediaRecorder.start(250); // 250ms time slice
+      } catch (mrErr) {
+        console.warn("MediaRecorder init notice:", mrErr);
+      }
+
       this.isRecording = true;
       this.toggleMicBtn.classList.add("recording");
-      this.toggleMicBtnText.innerText = "Stop Session";
+      this.toggleMicBtnText.innerText = "Send Spoken Audio";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Listening... Speak now!";
+      this.subtitleText.innerText = "Listening to mic... Speak and click 'Send' when done!";
 
       this.startSpeechRecognition();
 
@@ -330,19 +389,44 @@ class DuplexVaniClient {
     }
   }
 
-  stopMic() {
-    if (this.micStream) {
-      this.micStream.getTracks().forEach(t => t.stop());
-      this.micStream = null;
+  async stopMic() {
+    let capturedBlob = null;
+    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
+      this.mediaRecorder.stop();
+      capturedBlob = new Blob(this.audioChunks, { type: "audio/wav" });
     }
+
     if (this.speechRec) {
       try { this.speechRec.stop(); } catch(e){}
     }
+
     this.isRecording = false;
     this.toggleMicBtn.classList.remove("recording");
     this.toggleMicBtnText.innerText = "Start Duplex Voice";
-    this.setState("IDLE");
-    this.subtitleText.innerText = "Session stopped. Click Start to resume.";
+    this.setState("PROCESSING");
+    this.subtitleText.innerText = "Processing spoken audio...";
+
+    // If we recorded audio, convert to base64 and send to Gnani Prisma STT!
+    if (capturedBlob && capturedBlob.size > 500) {
+      const reader = new FileReader();
+      reader.readAsDataURL(capturedBlob);
+      reader.onloadend = () => {
+        const base64Audio = reader.result.split(",")[1];
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({
+            type: "USER_SPEECH_FINAL",
+            audio_b64: base64Audio,
+            language: this.selectedLanguage,
+            is_live: this.isLiveMode
+          }));
+          this.turnCount++;
+          this.turnCountEl.innerText = this.turnCount;
+        }
+      };
+    } else {
+      this.setState("IDLE");
+      this.subtitleText.innerText = "Session stopped. Click Start to speak again.";
+    }
   }
 
   startSpeechRecognition() {
@@ -360,29 +444,15 @@ class DuplexVaniClient {
     rec.lang = this.selectedLanguage;
 
     rec.onresult = (event) => {
+      // Barge-in if user speaks during playback
       if (this.currentState === "SPEAKING") {
         this.triggerBargeIn();
-      }
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          const spokenText = event.results[i][0].transcript.trim();
-          if (spokenText) {
-            this.sendFinalUtterance(spokenText);
-          }
-        }
       }
     };
 
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         this.speechPermissionDenied = true;
-      }
-    };
-
-    rec.onend = () => {
-      if (this.isRecording && !this.speechPermissionDenied) {
-        try { rec.start(); } catch(e){}
       }
     };
 
@@ -401,7 +471,8 @@ class DuplexVaniClient {
       this.ws.send(JSON.stringify({
         type: "USER_SPEECH_FINAL",
         text: text,
-        language: this.selectedLanguage
+        language: this.selectedLanguage,
+        is_live: this.isLiveMode
       }));
       this.turnCount++;
       this.turnCountEl.innerText = this.turnCount;
@@ -420,7 +491,7 @@ class DuplexVaniClient {
       prompts = [
         { label: '"Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
         { label: '"Mandi Bhavam"', text: "Indore Mandi lo eeroju godhumalu mariyu ullipayala dharalu ela unnaayi?" },
-        { label: '🛑 "Aagandi, nannu cheppanivvandi!"', text: "Arre aagandi, modata naaku cheppanivvandi!", barge: true }
+        { label: '🛑 "Aagandi, naaku cheppanivvandi!"', text: "Arre aagandi, modata naaku cheppanivvandi!", barge: true }
       ];
     } else if (lang === "ta-IN") {
       prompts = [
@@ -435,7 +506,6 @@ class DuplexVaniClient {
         { label: '🛑 "Wait, listen to me first!"', text: "Wait, hold on, listen to me first!", barge: true }
       ];
     } else {
-      // Default Hindi / Hinglish
       prompts = [
         { label: '"Aap kaun hain?"', text: "Namaste, aap kaun hain aur aap kaise kaam karte hain?" },
         { label: '"Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
@@ -530,6 +600,7 @@ class DuplexVaniClient {
   // --- Event Listeners ---
   initEventListeners() {
     this.toggleMicBtn.addEventListener("click", () => this.toggleMic());
+    this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
     
     this.interruptBtn.addEventListener("click", () => {
       if (this.currentState === "SPEAKING") {
@@ -548,7 +619,6 @@ class DuplexVaniClient {
       this.updateLanguagePrompts(e.target.value);
     });
 
-    // Initial prompts
     this.updateLanguagePrompts(this.selectedLanguage);
 
     this.clearFeedBtn.addEventListener("click", () => {

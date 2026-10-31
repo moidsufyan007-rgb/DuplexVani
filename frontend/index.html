@@ -23,11 +23,19 @@
         </div>
         <div class="brand-meta">
           <h1>DuplexVani <span class="badge-sub">Full-Duplex</span></h1>
-          <p>Powered by Gnani AI • Prisma STT & Timbre TTS (Male: Devansh)</p>
+          <p>Powered by Gnani AI • Prisma STT & Timbre TTS (Devansh)</p>
         </div>
       </div>
 
       <div class="header-status">
+        <!-- Credit Shield / Live Gnani Mode Switch -->
+        <div class="mode-box">
+          <button id="modeToggleBtn" class="mode-pill mode-shield" title="Click to toggle between Free Credit Shield and Live Gnani AI">
+            <span class="mode-icon" id="modeIcon">🛡️</span>
+            <span id="modeText">Credit Shield (Free)</span>
+          </button>
+        </div>
+
         <!-- Language Switcher Dropdown -->
         <div class="lang-box">
           <label for="langSelect" class="lang-label">Lang:</label>
@@ -39,11 +47,6 @@
             <option value="kn-IN">🇮🇳 Kannada (ಕನ್ನಡ)</option>
             <option value="mr-IN">🇮🇳 Marathi (मराठी)</option>
           </select>
-        </div>
-
-        <div class="model-tags">
-          <span class="tag">🎙️ Prisma</span>
-          <span class="tag">🔊 Devansh (Male)</span>
         </div>
 
         <div class="connection-pill" id="connPill">
@@ -77,7 +80,7 @@
         </div>
 
         <div class="live-subtitle" id="subtitleBox">
-          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak in your preferred language...</p>
+          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak into your mic or click a prompt chip...</p>
         </div>
 
         <!-- Primary Action Controls -->
@@ -107,10 +110,7 @@
         <div class="demo-prompts">
           <span class="prompt-label">Quick Demo Prompts:</span>
           <div class="chips-row" id="chipsRow">
-            <button class="chip" data-text="Namaste, aap kaun hain aur aap kaise kaam karte hain?">"Aap kaun hain?"</button>
-            <button class="chip" data-text="Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?">"Mandi Bhav Batao"</button>
-            <button class="chip" data-text="Ramesh bhai ke hisaab mein do packet doodh note kar lo udhaar.">"Kirana Khata Note Karo"</button>
-            <button class="chip chip-barge" data-text="Arre ruko, pehle meri baat suno!">🛑 "Arre ruko, meri baat suno!"</button>
+            <!-- Dynamically populated based on selected language -->
           </div>
         </div>
       </section>
@@ -150,7 +150,7 @@
           <div class="feed-messages" id="feedMessages">
             <div class="feed-item system-item">
               <span class="feed-role">SYSTEM</span>
-              <p>DuplexVani audio pipeline initialized with Devansh (Male Voice). Select language & press Start.</p>
+              <p>DuplexVani audio pipeline initialized with Devansh (Male Voice). Mode: Credit Shield (Free).</p>
             </div>
           </div>
         </div>

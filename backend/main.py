@@ -35,7 +35,6 @@ async def health():
     return {
         "status": "healthy",
         "project": settings.PROJECT_NAME,
-        "simulated_mode": gnani_client.simulated,
         "default_voice": gnani_client.default_male_voice,
         "models": {
             "stt": "Gnani Prisma v3.0",
@@ -49,16 +48,17 @@ async def process_speech_turn(
     manager: ConversationManager,
     user_text: str,
     audio_b64: str = None,
-    language: str = "hi-IN"
+    language: str = "hi-IN",
+    is_live: bool = False
 ):
     session_id = manager.session_id
     try:
-        # 1. Transcribe audio if raw audio was sent
+        # 1. Transcribe audio if raw audio was sent (Prisma STT)
         if audio_b64 and not user_text:
             manager.set_state(VoiceState.PROCESSING)
             await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
             audio_bytes = base64.b64decode(audio_b64)
-            user_text = await gnani_client.transcribe_audio(audio_bytes, language=language)
+            user_text = await gnani_client.transcribe_audio(audio_bytes, language=language, is_live=is_live)
 
         if not user_text.strip():
             manager.set_state(VoiceState.LISTENING)
@@ -69,7 +69,8 @@ async def process_speech_turn(
         await websocket.send_json({
             "type": "TRANSCRIPTION_RESULT",
             "role": "user",
-            "text": user_text
+            "text": user_text,
+            "engine": "Gnani Prisma v3.0" if is_live else "Credit Shield (Local)"
         })
 
         # 2. Generate response via Multilingual LLM Brain
@@ -91,14 +92,16 @@ async def process_speech_turn(
             "type": "ASSISTANT_REPLY_START",
             "playback_id": playback_id,
             "text": reply_text,
-            "state": VoiceState.SPEAKING.value
+            "state": VoiceState.SPEAKING.value,
+            "engine": "Gnani Timbre v3.0" if is_live else "Credit Shield (Local)"
         })
 
         # 4. Synthesize voice audio via Gnani Timbre (Male Voice)
         audio_bytes = await gnani_client.synthesize_speech(
             reply_text, 
             language=language, 
-            voice=gnani_client.default_male_voice
+            voice=gnani_client.default_male_voice,
+            is_live=is_live
         )
 
         # 5. Deliver audio payload to client
@@ -122,6 +125,7 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
     session_id = f"sess_{int(time.time()*1000)}"
     manager = ConversationManager(session_id)
     active_turn_task: asyncio.Task = None
+    session_live_mode: bool = False # Default: Credit Shield (Free)
     logger.info(f"New full-duplex session connected: {session_id}")
 
     # Send initial connection handshake
@@ -129,7 +133,7 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
         "type": "HANDSHAKE",
         "session_id": session_id,
         "state": VoiceState.IDLE.value,
-        "simulated": gnani_client.simulated,
+        "is_live": session_live_mode,
         "voice": gnani_client.default_male_voice,
         "message": "Connected to DuplexVani Real-Time Voice Gateway"
     })
@@ -156,20 +160,37 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
                     "data": interrupt_meta
                 })
 
-            # 2. USER SPEECH FINISHED
+            # 2. USER TOGGLED CREDIT SHIELD / LIVE GNANI MODE
+            elif msg_type == "SET_LIVE_MODE":
+                session_live_mode = bool(data.get("is_live", False))
+                logger.info(f"[{session_id}] Session live mode changed to: {session_live_mode}")
+                await websocket.send_json({
+                    "type": "MODE_UPDATED",
+                    "is_live": session_live_mode
+                })
+
+            # 3. USER SPEECH FINISHED
             elif msg_type == "USER_SPEECH_FINAL":
                 user_text = data.get("text", "")
                 audio_b64 = data.get("audio_b64")
                 language = data.get("language", settings.DEFAULT_LANGUAGE)
+                turn_live = data.get("is_live", session_live_mode)
 
                 if active_turn_task and not active_turn_task.done():
                     active_turn_task.cancel()
 
                 active_turn_task = asyncio.create_task(
-                    process_speech_turn(websocket, manager, user_text, audio_b64, language=language)
+                    process_speech_turn(
+                        websocket, 
+                        manager, 
+                        user_text, 
+                        audio_b64, 
+                        language=language, 
+                        is_live=turn_live
+                    )
                 )
 
-            # 3. PLAYBACK FINISHED NOTIFICATION FROM CLIENT
+            # 4. PLAYBACK FINISHED NOTIFICATION FROM CLIENT
             elif msg_type == "PLAYBACK_FINISHED":
                 if manager.state == VoiceState.SPEAKING:
                     manager.stop_speaking()
@@ -179,7 +200,7 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
                         "metrics": manager.get_metrics()
                     })
 
-            # 4. PING / LATENCY PROBE
+            # 5. PING / LATENCY PROBE
             elif msg_type == "PING":
                 await websocket.send_json({
                     "type": "PONG",

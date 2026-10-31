@@ -12,20 +12,22 @@ class GnaniVoiceClient:
     Official Client for Gnani AI / Vachana Voice Models:
     - Prisma v3.0 STT: Low-latency Indic & Hinglish speech transcription
     - Timbre v3.0 TTS: Natural Indic voice synthesis (Devansh, Avinash, etc.)
+    Supports dynamic per-session switching between Live and Credit Shield (Free) mode.
     """
 
     def __init__(self):
         self.api_key = settings.GNANI_API_KEY
         self.prisma_url = settings.GNANI_PRISMA_STT_URL
         self.timbre_url = settings.GNANI_TIMBRE_TTS_URL
-        self.simulated = settings.USE_SIMULATED_GNANI or not bool(self.api_key)
-        self.default_male_voice = "Devansh" # Supported male voices: Devansh, Avinash, Shubham, Prakash, Yash
+        self.default_male_voice = "Devansh"
 
-    async def transcribe_audio(self, audio_bytes: bytes, language: str = "hi-IN") -> str:
+    async def transcribe_audio(self, audio_bytes: bytes, language: str = "hi-IN", is_live: bool = False) -> str:
         """
-        Sends audio to Gnani Prisma STT for transcription in the target language.
+        Transcribes speech audio into text.
+        If is_live=True and API key exists, calls live Gnani Prisma STT.
+        If is_live=False, returns simulated transcription with 0 credit consumption.
         """
-        if not self.simulated and self.api_key:
+        if is_live and self.api_key:
             try:
                 headers = {"X-API-Key-ID": self.api_key}
                 files = {"audio_file": ("speech.wav", audio_bytes, "audio/wav")}
@@ -34,27 +36,38 @@ class GnaniVoiceClient:
                     "language_code": language
                 }
 
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                logger.info(f"Calling Live Gnani Prisma STT (Lang: {language}, Audio size: {len(audio_bytes)} bytes)")
+                async with httpx.AsyncClient(timeout=12.0) as client:
                     resp = await client.post(self.prisma_url, headers=headers, files=files, data=data)
                     if resp.status_code == 200:
                         res_json = resp.json()
-                        return res_json.get("transcript", res_json.get("text", ""))
+                        transcript = res_json.get("transcript", res_json.get("text", "")).strip()
+                        if transcript:
+                            return transcript
                     else:
                         logger.warning(f"Prisma returned status {resp.status_code}: {resp.text}")
             except Exception as e:
                 logger.error(f"Live Prisma STT call failed: {e}")
 
-        return "Namaste! Main DuplexVani hoon. Aap mujhe bolte hue kabhi bhi interrupt kar sakte hain!"
+        # Credit Shield / Simulated Mode (Free)
+        return self._simulate_transcription(language)
 
-    async def synthesize_speech(self, text: str, language: str = "hi-IN", voice: Optional[str] = None) -> bytes:
+    async def synthesize_speech(
+        self, 
+        text: str, 
+        language: str = "hi-IN", 
+        voice: Optional[str] = None,
+        is_live: bool = False
+    ) -> bytes:
         """
-        Calls Gnani Timbre TTS using crisp male voice ('Devansh') at native 48,000 Hz.
-        Supports regional Indic languages (Hindi, Telugu, Tamil, Kannada, Marathi, English, etc.)
+        Synthesizes text into natural voice audio.
+        If is_live=True, calls Gnani Timbre TTS (48kHz Devansh).
+        If is_live=False, uses local speech generator with 0 credit consumption.
         """
         sample_rate = 48000
         chosen_voice = voice or self.default_male_voice
 
-        if not self.simulated and self.api_key:
+        if is_live and self.api_key:
             try:
                 headers = {
                     "X-API-Key-ID": self.api_key,
@@ -66,16 +79,17 @@ class GnaniVoiceClient:
                     "voice": chosen_voice,
                     "language": language,
                     "sample_rate": sample_rate,
-                    "speed": 1.15  # Snappy, natural male cadence
+                    "speed": 1.15
                 }
+                logger.info(f"Calling Live Gnani Timbre TTS (Voice: {chosen_voice}, Lang: {language})")
                 async with httpx.AsyncClient(timeout=12.0) as client:
                     resp = await client.post(self.timbre_url, headers=headers, json=payload)
                     if resp.status_code == 200:
                         raw_pcm = resp.content
                         wav_buf = io.BytesIO()
                         with wave.open(wav_buf, 'wb') as wav:
-                            wav.setnchannels(1)        # Mono
-                            wav.setsampwidth(2)        # 16-bit linear PCM
+                            wav.setnchannels(1)
+                            wav.setsampwidth(2)
                             wav.setframerate(sample_rate)
                             wav.writeframes(raw_pcm)
                         return wav_buf.getvalue()
@@ -84,8 +98,19 @@ class GnaniVoiceClient:
             except Exception as e:
                 logger.error(f"Live Timbre TTS call failed: {e}")
 
-        # Local fallback
+        # Credit Shield fallback
         return self._generate_local_audio(text)
+
+    def _simulate_transcription(self, language: str) -> str:
+        lang_code = language.split("-")[0].lower()
+        if lang_code == "te":
+            return "Namaskaram! DuplexVani gurinchi naaku vivarinchandi."
+        elif lang_code == "ta":
+            return "Vanakkam! DuplexVani patri enakku sollungal."
+        elif lang_code == "en":
+            return "Hello! Tell me about DuplexVani and how it works."
+        else:
+            return "Namaste! Mujhe DuplexVani ke bare mein bataiye aur aap kaise kaam karte hain?"
 
     def _generate_local_audio(self, text: str) -> bytes:
         try:
