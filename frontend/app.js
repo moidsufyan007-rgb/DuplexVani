@@ -12,10 +12,11 @@ class DuplexVaniClient {
     this.isRecording = false;
     this.currentState = "IDLE";
     this.activePlaybackId = null;
-    this.lastInterruptTs = 0;
     this.interruptionCount = 0;
     this.turnCount = 0;
     this.rtt = 0;
+    this.speechRec = null;
+    this.speechPermissionDenied = false;
     
     // UI Elements
     this.stateBadge = document.getElementById("stateBadge");
@@ -44,11 +45,19 @@ class DuplexVaniClient {
 
   // --- WebSocket Connection ---
   initWebSocket() {
+    const isFile = window.location.protocol === "file:";
+    const host = (isFile || !window.location.host) ? "127.0.0.1:8000" : window.location.host;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws/duplex`;
+    const wsUrl = `${protocol}//${host}/ws/duplex`;
 
     this.connStatusText.innerText = "Connecting...";
-    this.ws = new WebSocket(wsUrl);
+    try {
+      this.ws = new WebSocket(wsUrl);
+    } catch (e) {
+      console.warn("WebSocket init error:", e);
+      setTimeout(() => this.initWebSocket(), 3000);
+      return;
+    }
 
     this.ws.onopen = () => {
       this.connPill.classList.add("connected");
@@ -63,7 +72,7 @@ class DuplexVaniClient {
     };
 
     this.ws.onerror = (err) => {
-      console.error("WebSocket Error:", err);
+      console.warn("WebSocket Error (ensure uvicorn server is running on port 8000):", err);
     };
 
     this.ws.onmessage = (event) => {
@@ -77,7 +86,8 @@ class DuplexVaniClient {
   }
 
   startPingLoop() {
-    setInterval(() => {
+    if (this.pingInterval) clearInterval(this.pingInterval);
+    this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({
           type: "PING",
@@ -169,12 +179,12 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Instant Barge-In (Interruption) Engine ---
+  // --- Instant Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
     console.log("⚡ BARGE-IN TRIGGERED");
 
-    // 1. Immediately abort current audio node
+    // 1. Instantly kill audio playback
     if (this.currentSource) {
       try {
         this.currentSource.stop(0);
@@ -183,7 +193,7 @@ class DuplexVaniClient {
       this.currentSource = null;
     }
 
-    // 2. Mark active feed item as cut-off
+    // 2. Mark item as cut off
     if (this.activePlaybackId) {
       const activeEl = document.querySelector(`[data-playback="${this.activePlaybackId}"]`);
       if (activeEl) {
@@ -216,7 +226,6 @@ class DuplexVaniClient {
         await this.audioCtx.resume();
       }
 
-      // Convert base64 to arrayBuffer
       const binaryString = window.atob(base64Data);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -226,7 +235,6 @@ class DuplexVaniClient {
 
       const audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer);
       
-      // Stop any existing sound
       if (this.currentSource) {
         try { this.currentSource.stop(0); } catch(e){}
       }
@@ -234,7 +242,6 @@ class DuplexVaniClient {
       const source = this.audioCtx.createBufferSource();
       source.buffer = audioBuffer;
 
-      // Connect to analyser for live waveform pulse
       if (this.analyser) {
         source.connect(this.analyser);
       }
@@ -278,13 +285,15 @@ class DuplexVaniClient {
         await this.audioCtx.resume();
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.micStream = stream;
+      // Check mic permission cleanly
+      if (!this.micStream) {
+        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
 
-      // Setup analyser
+      // Setup analyser for visualization
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
-      const micSource = this.audioCtx.createMediaStreamSource(stream);
+      const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
       micSource.connect(this.analyser);
 
       this.isRecording = true;
@@ -296,12 +305,12 @@ class DuplexVaniClient {
       this.startSpeechRecognition();
 
     } catch (err) {
-      console.warn("Microphone access fallback:", err);
+      console.warn("Microphone not available, using prompt mode:", err);
       this.isRecording = true;
       this.toggleMicBtn.classList.add("recording");
       this.toggleMicBtnText.innerText = "Stop Session";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Simulated Duplex Mode active. Click any quick prompt chip below!";
+      this.subtitleText.innerText = "Session active. Click any prompt chip below or use keyboard!";
     }
   }
 
@@ -321,16 +330,20 @@ class DuplexVaniClient {
   }
 
   startSpeechRecognition() {
+    if (this.speechPermissionDenied) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
+
+    if (this.speechRec) {
+      try { this.speechRec.stop(); } catch(e){}
+    }
 
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = "hi-IN"; // Indic / Hinglish detection
+    rec.lang = "hi-IN";
 
     rec.onresult = (event) => {
-      // If user starts speaking while assistant is speaking, trigger barge-in!
       if (this.currentState === "SPEAKING") {
         this.triggerBargeIn();
       }
@@ -345,9 +358,16 @@ class DuplexVaniClient {
       }
     };
 
-    rec.onerror = (e) => console.log("Speech recognition notice:", e.error);
+    rec.onerror = (e) => {
+      console.log("Speech recognition notice:", e.error);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        // Prevent aggressive re-prompt loop
+        this.speechPermissionDenied = true;
+      }
+    };
+
     rec.onend = () => {
-      if (this.isRecording) {
+      if (this.isRecording && !this.speechPermissionDenied) {
         try { rec.start(); } catch(e){}
       }
     };
@@ -381,15 +401,10 @@ class DuplexVaniClient {
       const height = this.canvas.height;
       this.canvasCtx.clearRect(0, 0, width, height);
 
-      let energy = 0;
       if (this.analyser) {
         this.analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-        energy = sum / bufferLength;
       }
 
-      // Draw wave
       this.canvasCtx.lineWidth = 2;
       const gradient = this.canvasCtx.createLinearGradient(0, 0, width, 0);
       gradient.addColorStop(0, "rgba(139, 92, 246, 0.2)");
@@ -440,14 +455,12 @@ class DuplexVaniClient {
   initEventListeners() {
     this.toggleMicBtn.addEventListener("click", () => this.toggleMic());
     
-    // Barge-in Button Click
     this.interruptBtn.addEventListener("click", () => {
       if (this.currentState === "SPEAKING") {
         this.triggerBargeIn();
       }
     });
 
-    // Spacebar shortcut for instant barge-in demonstration
     window.addEventListener("keydown", (e) => {
       if (e.code === "Space" && e.target.tagName !== "INPUT" && this.currentState === "SPEAKING") {
         e.preventDefault();
@@ -455,7 +468,6 @@ class DuplexVaniClient {
       }
     });
 
-    // Quick Prompt Chips
     document.querySelectorAll(".chip").forEach(chip => {
       chip.addEventListener("click", () => {
         const text = chip.getAttribute("data-text");
@@ -474,7 +486,6 @@ class DuplexVaniClient {
   }
 }
 
-// Instantiate on page load
 window.addEventListener("DOMContentLoaded", () => {
   window.duplexApp = new DuplexVaniClient();
 });
