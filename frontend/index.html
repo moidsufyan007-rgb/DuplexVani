@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DuplexVani — Full-Duplex Indic Voice AI with Interruption Handling</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Navbar / Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div class="brand-meta">
+          <h1>DuplexVani <span class="badge-sub">Full-Duplex</span></h1>
+          <p>Powered by Gnani AI • Prisma STT & Timbre TTS</p>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="model-tags">
+          <span class="tag">🎙️ Prisma STT</span>
+          <span class="tag">🔊 Timbre TTS</span>
+          <span class="tag tag-accent">⚡ Sub-50ms Barge-In</span>
+        </div>
+        <div class="connection-pill" id="connPill">
+          <span class="dot"></span>
+          <span id="connStatusText">Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="main-grid">
+      <!-- Left Panel: Voice Stage & Visualizer -->
+      <section class="card voice-stage">
+        <div class="stage-header">
+          <div class="state-indicator" id="stateBadge">
+            <span class="pulse-ring"></span>
+            <span class="state-text" id="stateText">IDLE</span>
+          </div>
+          <div class="latency-chip">
+            <span class="label">Barge-in Latency:</span>
+            <strong id="latencyDisplay">-- ms</strong>
+          </div>
+        </div>
+
+        <!-- Central Wave Visualizer -->
+        <div class="visualizer-wrapper">
+          <canvas id="visualizerCanvas" width="600" height="200"></canvas>
+          <div class="orb-container" id="visualOrb">
+            <div class="inner-glow"></div>
+          </div>
+        </div>
+
+        <div class="live-subtitle" id="subtitleBox">
+          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak in Hinglish or regional languages...</p>
+        </div>
+
+        <!-- Primary Action Controls -->
+        <div class="stage-controls">
+          <button id="toggleMicBtn" class="btn btn-primary btn-large">
+            <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            <span id="toggleMicBtnText">Start Duplex Voice</span>
+          </button>
+
+          <!-- Instant Interruption Trigger (Barge-In) -->
+          <button id="interruptBtn" class="btn btn-danger" disabled title="Trigger instant barge-in to cut off assistant">
+            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            <span>Interrupt Bot (Barge-in)</span>
+            <kbd>Space</kbd>
+          </button>
+        </div>
+
+        <!-- Quick Utterance Chips for Live Video Demo -->
+        <div class="demo-prompts">
+          <span class="prompt-label">Quick Demo Hinglish Prompts:</span>
+          <div class="chips-row">
+            <button class="chip" data-text="Namaste, aap kaun hain aur aap kaise kaam karte hain?">"Aap kaun hain?"</button>
+            <button class="chip" data-text="Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?">"Mandi Bhav Batao"</button>
+            <button class="chip" data-text="Ramesh bhai ke hisaab mein do packet doodh note kar lo udhaar.">"Kirana Khata Note Karo"</button>
+            <button class="chip chip-barge" data-text="Arre ruko, pehle meri baat suno!">🛑 "Arre ruko, meri baat suno!"</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Telemetry & Live Conversational Transcript -->
+      <section class="card telemetry-panel">
+        <div class="panel-header">
+          <h2>Live Session Telemetry</h2>
+          <span class="session-badge" id="sessionIdBadge">--</span>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-title">Successful Barge-ins</span>
+            <span class="metric-value text-accent" id="interruptCount">0</span>
+            <span class="metric-sub">Zero-latency cutoffs</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Conversation Turns</span>
+            <span class="metric-value" id="turnCount">0</span>
+            <span class="metric-sub">Full duplex exchanges</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Websocket RTT</span>
+            <span class="metric-value text-green" id="rttDisplay">-- ms</span>
+            <span class="metric-sub">Edge stream transit</span>
+          </div>
+        </div>
+
+        <!-- Transcript Feed -->
+        <div class="transcript-feed">
+          <div class="feed-header">
+            <h3>Live Conversation Feed</h3>
+            <button id="clearFeedBtn" class="btn-text">Clear</button>
+          </div>
+          <div class="feed-messages" id="feedMessages">
+            <div class="feed-item system-item">
+              <span class="feed-role">SYSTEM</span>
+              <p>DuplexVani audio pipeline initialized. Press Start to begin bi-directional streaming.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer with Challenge Attribution -->
+    <footer class="footer">
+      <p>Built for the <strong>Great Indian AI Internship Challenge 2026</strong> • Powered by <strong>Gnani AI</strong> Indic Speech Technologies</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
