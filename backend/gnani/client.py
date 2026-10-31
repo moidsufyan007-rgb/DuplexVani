@@ -43,14 +43,14 @@ class GnaniVoiceClient:
             except Exception as e:
                 logger.error(f"Live Prisma STT call failed: {e}")
 
-        # Fallback response
         return "Namaste! Main DuplexVani hoon. Aap mujhe bolte hue kabhi bhi interrupt kar sakte hain!"
 
     async def synthesize_speech(self, text: str, language: str = "hi-IN") -> bytes:
         """
-        Calls Gnani Timbre TTS and wraps the raw PCM samples into a standard playable WAV container.
+        Calls Gnani Timbre TTS at native 48,000 Hz human voice cadence.
+        Wraps PCM into a clean 48kHz WAV container.
         """
-        sample_rate = 24000
+        sample_rate = 48000
         if not self.simulated and self.api_key:
             try:
                 headers = {
@@ -63,28 +63,25 @@ class GnaniVoiceClient:
                     "voice": "Shivani",
                     "language": language,
                     "sample_rate": sample_rate,
-                    "speed": 1.0
+                    "speed": 1.1  # Natural lively conversational pace
                 }
                 async with httpx.AsyncClient(timeout=12.0) as client:
                     resp = await client.post(self.timbre_url, headers=headers, json=payload)
                     if resp.status_code == 200:
                         raw_pcm = resp.content
-                        # If Gnani returned raw PCM, package it into a standard 44-byte RIFF WAV
-                        if not raw_pcm.startswith(b'RIFF'):
-                            wav_buf = io.BytesIO()
-                            with wave.open(wav_buf, 'wb') as wav:
-                                wav.setnchannels(1)        # Mono
-                                wav.setsampwidth(2)        # 16-bit linear PCM
-                                wav.setframerate(sample_rate)
-                                wav.writeframes(raw_pcm)
-                            return wav_buf.getvalue()
-                        return raw_pcm
+                        wav_buf = io.BytesIO()
+                        with wave.open(wav_buf, 'wb') as wav:
+                            wav.setnchannels(1)        # Mono
+                            wav.setsampwidth(2)        # 16-bit linear PCM
+                            wav.setframerate(sample_rate)
+                            wav.writeframes(raw_pcm)
+                        return wav_buf.getvalue()
                     else:
                         logger.warning(f"Gnani Timbre returned status {resp.status_code}: {resp.text}")
             except Exception as e:
                 logger.error(f"Live Timbre TTS call failed: {e}")
 
-        # Fallback local synthesis
+        # Local fallback
         return self._generate_local_audio(text)
 
     def _generate_local_audio(self, text: str) -> bytes:
@@ -92,7 +89,7 @@ class GnaniVoiceClient:
             import pyttsx3
             import os
             engine = pyttsx3.init()
-            engine.setProperty('rate', 160)
+            engine.setProperty('rate', 165)
             temp_file = "temp_local_voice.wav"
             engine.save_to_file(text, temp_file)
             engine.runAndWait()

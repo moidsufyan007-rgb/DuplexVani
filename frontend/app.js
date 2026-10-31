@@ -239,10 +239,10 @@ class DuplexVaniClient {
       try {
         audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer.slice(0));
       } catch (decodeErr) {
-        console.warn("Standard decode failed, falling back to direct PCM 24kHz decode:", decodeErr);
-        // Method 2: Fallback to direct 16-bit linear PCM at 24000Hz
+        console.warn("Standard decode failed, falling back to direct PCM 48kHz decode:", decodeErr);
+        // Method 2: Fallback to direct 16-bit linear PCM at 48000Hz
         const int16Array = new Int16Array(bytes.buffer);
-        audioBuffer = this.audioCtx.createBuffer(1, int16Array.length, 24000);
+        audioBuffer = this.audioCtx.createBuffer(1, int16Array.length, 48000);
         const channelData = audioBuffer.getChannelData(0);
         for (let i = 0; i < int16Array.length; i++) {
           channelData[i] = int16Array[i] / 32768.0;
