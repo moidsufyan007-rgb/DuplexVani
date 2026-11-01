@@ -556,6 +556,132 @@ body.enterprise-theme {
 .text-accent { color: var(--color-blue); }
 .text-success { color: var(--color-green); }
 .text-muted-value { color: #cbd5e1; }
+.text-red { color: #f87171; }
+.text-purple { color: #c084fc; }
+.text-green { color: #4ade80; }
+.text-blue { color: #60a5fa; }
+
+/* Real-Time Latency Waterfall Card */
+.latency-waterfall-card {
+  background: #0f1520;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.waterfall-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.waterfall-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.waterfall-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.badge-preempt {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 0.25rem;
+  letter-spacing: 0.03em;
+}
+
+.waterfall-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.waterfall-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 70px;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.metric-tag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.tag-barge { color: #f87171; }
+.tag-llm { color: #c084fc; }
+.tag-tts { color: #4ade80; }
+.tag-total { color: #60a5fa; font-weight: 800; }
+
+.metric-name {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-bar-wrap {
+  height: 6px;
+  background: #18202d;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.metric-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bar-barge { background: #ef4444; }
+.bar-llm { background: #a855f7; }
+.bar-tts { background: #10b981; }
+.bar-total { background: #3b82f6; }
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.metric-total {
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.metric-total .metric-value {
+  font-size: 0.82rem;
+}
 
 /* Call Transcript Log */
 .log-stream-wrapper {

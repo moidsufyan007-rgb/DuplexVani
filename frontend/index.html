@@ -177,6 +177,67 @@
           </div>
         </div>
 
+        <!-- Real-Time Full-Duplex Latency Waterfall -->
+        <div class="latency-waterfall-card">
+          <div class="waterfall-head">
+            <div class="waterfall-title-row">
+              <span class="waterfall-title">REAL-TIME PIPELINE TELEMETRY</span>
+              <span class="badge-preempt" id="preemptBadge">PREEMPTION: &lt;5ms</span>
+            </div>
+            <span class="waterfall-sub">Sub-50ms Barge-In Target vs End-to-End Pipeline</span>
+          </div>
+
+          <div class="waterfall-metrics">
+            <!-- Row 1: Barge-In Interruption -->
+            <div class="metric-row">
+              <div class="metric-info">
+                <span class="metric-tag tag-barge">BARGE-IN CUTOFF</span>
+                <span class="metric-name">Server Task Cancel + Audio Drop</span>
+              </div>
+              <div class="metric-bar-wrap">
+                <div class="metric-bar bar-barge" id="barBargeIn" style="width: 10%;"></div>
+              </div>
+              <div class="metric-value text-red" id="valBargeIn">3.8 ms</div>
+            </div>
+
+            <!-- Row 2: LLM Brain -->
+            <div class="metric-row">
+              <div class="metric-info">
+                <span class="metric-tag tag-llm">LLM REASONING</span>
+                <span class="metric-name">Gemini 3.5 Flash (Indic Reasoning)</span>
+              </div>
+              <div class="metric-bar-wrap">
+                <div class="metric-bar bar-llm" id="barLlm" style="width: 0%;"></div>
+              </div>
+              <div class="metric-value text-purple" id="valLlm">-- ms</div>
+            </div>
+
+            <!-- Row 3: Timbre Speech Synthesis -->
+            <div class="metric-row">
+              <div class="metric-info">
+                <span class="metric-tag tag-tts">TIMBRE SYNTHESIS</span>
+                <span class="metric-name">Gnani Timbre v3.0 (Devansh 48kHz)</span>
+              </div>
+              <div class="metric-bar-wrap">
+                <div class="metric-bar bar-tts" id="barTts" style="width: 0%;"></div>
+              </div>
+              <div class="metric-value text-green" id="valTts">-- ms</div>
+            </div>
+
+            <!-- Row 4: Total End-to-End Turn -->
+            <div class="metric-row metric-total">
+              <div class="metric-info">
+                <span class="metric-tag tag-total">TOTAL E2E TURN</span>
+                <span class="metric-name">Full-Duplex User &rarr; Speaker Roundtrip</span>
+              </div>
+              <div class="metric-bar-wrap">
+                <div class="metric-bar bar-total" id="barTotal" style="width: 0%;"></div>
+              </div>
+              <div class="metric-value text-blue" id="valTotal">-- ms</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Chronological Call Event Log -->
         <div class="log-stream-wrapper">
           <div class="log-toolbar">

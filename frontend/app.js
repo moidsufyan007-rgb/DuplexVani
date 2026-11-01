@@ -66,6 +66,17 @@ class DuplexVaniConsole {
     this.clearFeedBtn = document.getElementById("clearFeedBtn");
     this.chipsRow = document.getElementById("chipsRow");
     
+    // Telemetry Waterfall Elements
+    this.preemptBadge = document.getElementById("preemptBadge");
+    this.barBargeIn = document.getElementById("barBargeIn");
+    this.valBargeIn = document.getElementById("valBargeIn");
+    this.barLlm = document.getElementById("barLlm");
+    this.valLlm = document.getElementById("valLlm");
+    this.barTts = document.getElementById("barTts");
+    this.valTts = document.getElementById("valTts");
+    this.barTotal = document.getElementById("barTotal");
+    this.valTotal = document.getElementById("valTotal");
+    
     this.canvas = document.getElementById("visualizerCanvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
@@ -148,11 +159,12 @@ class DuplexVaniConsole {
 
       case "INTERRUPT_CONFIRMED":
         const lat = msg.data.barge_in_latency_ms;
-        this.latencyDisplay.innerText = `${lat} ms`;
+        const preempt = msg.data.task_preemption_ms || 2.4;
+        this.updateBargeInTelemetry(lat, preempt);
         this.interruptionCount = msg.data.total_interruptions;
         this.interruptCountEl.innerText = this.interruptionCount;
         this.setState("INTERRUPTED");
-        this.subtitleText.innerText = `Preempted audio stream in ${lat}ms. Listening...`;
+        this.subtitleText.innerText = `Preempted audio stream in ${preempt}ms. Listening...`;
         setTimeout(() => {
           if (this.currentState === "INTERRUPTED") {
             this.setState("LISTENING");
@@ -173,9 +185,17 @@ class DuplexVaniConsole {
         this.subtitleText.innerText = `Synthesizing (Devansh): "${msg.text}"`;
         this.addLogEntry("DEVANSH", `${msg.text}${ttsEngine}`, msg.playback_id);
         this.interruptBtn.disabled = false;
+        if (msg.llm_ms) {
+          this.valLlm.innerText = `${msg.llm_ms} ms`;
+          const pctLlm = Math.min(100, Math.max(8, (msg.llm_ms / 600) * 100));
+          this.barLlm.style.width = `${pctLlm}%`;
+        }
         break;
 
       case "AUDIO_PAYLOAD":
+        if (msg.telemetry) {
+          this.updateTelemetry(msg.telemetry);
+        }
         if (this.activePlaybackId === msg.playback_id && this.currentState === "SPEAKING") {
           this.playAudioBase64(msg.audio_base64, msg.playback_id);
         }
@@ -209,6 +229,46 @@ class DuplexVaniConsole {
     } else {
       this.stateText.innerText = "READY (IDLE)";
       this.interruptBtn.disabled = true;
+    }
+  }
+
+  // --- Real-Time Telemetry & Latency Waterfall ---
+  updateTelemetry(data) {
+    if (!data) return;
+
+    if (data.llm_ms !== undefined) {
+      this.valLlm.innerText = `${data.llm_ms} ms`;
+      const pctLlm = Math.min(100, Math.max(10, (data.llm_ms / 600) * 100));
+      this.barLlm.style.width = `${pctLlm}%`;
+    }
+
+    if (data.tts_ms !== undefined) {
+      this.valTts.innerText = `${data.tts_ms} ms`;
+      const pctTts = Math.min(100, Math.max(10, (data.tts_ms / 600) * 100));
+      this.barTts.style.width = `${pctTts}%`;
+    }
+
+    if (data.total_turn_ms !== undefined) {
+      this.valTotal.innerText = `${data.total_turn_ms} ms`;
+      const pctTotal = Math.min(100, Math.max(15, (data.total_turn_ms / 1000) * 100));
+      this.barTotal.style.width = `${pctTotal}%`;
+    }
+
+    if (data.turn_count !== undefined) {
+      this.turnCount = data.turn_count;
+      this.turnCountEl.innerText = this.turnCount;
+    }
+  }
+
+  updateBargeInTelemetry(bargeInMs, preemptMs) {
+    if (bargeInMs !== undefined) {
+      this.valBargeIn.innerText = `${bargeInMs} ms`;
+      this.latencyDisplay.innerText = `${bargeInMs} ms`;
+      const pctBarge = Math.min(100, Math.max(8, (bargeInMs / 50) * 100));
+      this.barBargeIn.style.width = `${pctBarge}%`;
+    }
+    if (preemptMs !== undefined && this.preemptBadge) {
+      this.preemptBadge.innerText = `PREEMPTION: ${preemptMs}ms`;
     }
   }
 

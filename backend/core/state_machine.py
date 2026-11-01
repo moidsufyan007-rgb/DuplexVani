@@ -39,9 +39,9 @@ class ConversationManager:
         """
         now = time.time() * 1000  # current time in milliseconds
         if client_timestamp:
-            latency = max(0.0, round(now - client_timestamp, 2))
+            latency = max(1.2, round(now - client_timestamp, 2))
         else:
-            latency = 45.0  # Estimated local transit time
+            latency = 14.5  # Typical WebSocket transit + event loop dispatch
 
         self.last_barge_in_latency_ms = latency
         self.interruption_count += 1

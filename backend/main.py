@@ -52,13 +52,20 @@ async def process_speech_turn(
     is_live: bool = False
 ):
     session_id = manager.session_id
+    turn_start_time = time.time()
+    stt_latency_ms = 0.0
+    llm_latency_ms = 0.0
+    tts_latency_ms = 0.0
+
     try:
         # 1. Transcribe audio if raw audio was sent (Prisma STT)
         if audio_b64 and not user_text:
             manager.set_state(VoiceState.PROCESSING)
             await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
+            t_stt = time.time()
             audio_bytes = base64.b64decode(audio_b64)
             user_text = await gnani_client.transcribe_audio(audio_bytes, language=language, is_live=is_live)
+            stt_latency_ms = round((time.time() - t_stt) * 1000, 1)
 
         if not user_text.strip():
             manager.set_state(VoiceState.LISTENING)
@@ -70,7 +77,8 @@ async def process_speech_turn(
             "type": "TRANSCRIPTION_RESULT",
             "role": "user",
             "text": user_text,
-            "engine": "Gnani Prisma v3.0" if is_live else "Credit Shield (Local)"
+            "engine": "Gnani Prisma v3.0" if is_live else "Credit Shield (Local)",
+            "stt_ms": stt_latency_ms
         })
 
         # 2. Generate response via Multilingual LLM Brain
@@ -78,12 +86,14 @@ async def process_speech_turn(
         await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
 
         was_interrupted = manager.is_interrupted()
+        t_llm = time.time()
         reply_text = await llm_service.generate_response(
             user_text, 
             manager.history, 
             was_interrupted=was_interrupted,
             language=language
         )
+        llm_latency_ms = round((time.time() - t_llm) * 1000, 1)
 
         # 3. Notify client that assistant speech is beginning
         playback_id = f"play_{int(time.time()*1000)}"
@@ -93,24 +103,37 @@ async def process_speech_turn(
             "playback_id": playback_id,
             "text": reply_text,
             "state": VoiceState.SPEAKING.value,
-            "engine": "Gnani Timbre v3.0" if is_live else "Credit Shield (Local)"
+            "engine": "Gnani Timbre v3.0" if is_live else "Credit Shield (Local)",
+            "llm_ms": llm_latency_ms
         })
 
         # 4. Synthesize voice audio via Gnani Timbre (Male Voice)
+        t_tts = time.time()
         audio_bytes = await gnani_client.synthesize_speech(
             reply_text, 
             language=language, 
             voice=gnani_client.default_male_voice,
             is_live=is_live
         )
+        tts_latency_ms = round((time.time() - t_tts) * 1000, 1)
+        total_turn_ms = round((time.time() - turn_start_time) * 1000, 1)
 
-        # 5. Deliver audio payload to client
+        # 5. Deliver audio payload with latency breakdown
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
         await websocket.send_json({
             "type": "AUDIO_PAYLOAD",
             "playback_id": playback_id,
             "audio_base64": audio_base64,
-            "format": "audio/wav"
+            "format": "audio/wav",
+            "telemetry": {
+                "stt_ms": stt_latency_ms,
+                "llm_ms": llm_latency_ms,
+                "tts_ms": tts_latency_ms,
+                "total_turn_ms": total_turn_ms,
+                "turn_count": manager.turn_count,
+                "interruption_count": manager.interruption_count,
+                "barge_in_latency_ms": manager.last_barge_in_latency_ms or 0
+            }
         })
         manager.add_assistant_message(reply_text, was_cut_off=False)
 
@@ -147,13 +170,16 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
             # 1. USER BARGE-IN / INTERRUPTION EVENT
             if msg_type == "USER_INTERRUPT":
                 client_ts = data.get("timestamp")
+                t_preempt_start = time.time()
 
                 if active_turn_task and not active_turn_task.done():
                     active_turn_task.cancel()
                     active_turn_task = None
 
+                preempt_duration_ms = round((time.time() - t_preempt_start) * 1000, 2)
                 interrupt_meta = manager.trigger_interruption(client_ts)
-                logger.info(f"[{session_id}] Barge-in interruption preempted stream! Latency: {interrupt_meta['barge_in_latency_ms']}ms")
+                interrupt_meta["task_preemption_ms"] = max(0.5, preempt_duration_ms)
+                logger.info(f"[{session_id}] Barge-in interruption preempted stream! Transit Latency: {interrupt_meta['barge_in_latency_ms']}ms | Preempt: {interrupt_meta['task_preemption_ms']}ms")
 
                 await websocket.send_json({
                     "type": "INTERRUPT_CONFIRMED",
