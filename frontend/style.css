@@ -447,6 +447,116 @@ body.enterprise-theme {
   box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
 }
 
+/* Bharat Telephony Acoustic Presets Cluster */
+.telephony-presets-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: #0f1520;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 0.5rem;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.telephony-presets-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #f59e0b;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.telephony-pills {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tele-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #151d2b;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.tele-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64748b;
+  transition: all 0.15s ease;
+}
+
+.tele-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.tele-pill.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.tele-pill.active[data-preset="hd"] {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: #06b6d4;
+  color: #22d3ee;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+}
+.tele-pill.active[data-preset="hd"] .tele-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 6px #22d3ee;
+}
+
+.tele-pill.active[data-preset="gsm"] {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+.tele-pill.active[data-preset="gsm"] .tele-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 6px #fbbf24;
+}
+
+.tele-pill.active[data-preset="bazaar"] {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+.tele-pill.active[data-preset="bazaar"] .tele-dot {
+  background: #34d399;
+  box-shadow: 0 0 6px #34d399;
+}
+
+.tele-pill.active[data-preset="railway"] {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: #a855f7;
+  color: #c084fc;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+.tele-pill.active[data-preset="railway"] .tele-dot {
+  background: #c084fc;
+  box-shadow: 0 0 6px #c084fc;
+}
+
 /* Operator Controls */
 .operator-controls {
   display: flex;

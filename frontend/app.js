@@ -54,6 +54,14 @@ class DuplexVaniConsole {
     this.telephonyStatusText = document.getElementById("telephonyStatusText");
     this.noiseToggleBtn = document.getElementById("noiseToggleBtn");
     this.noiseStatusText = document.getElementById("noiseStatusText");
+
+    // Bharat Telephony Simulator Properties
+    this.acousticPreset = "hd"; // 'hd', 'gsm', 'bazaar', 'railway'
+    this.bandwidthBadge = document.getElementById("bandwidthBadge");
+    this.mosBadge = document.getElementById("mosBadge");
+    this.humSourceNode1 = null;
+    this.humSourceNode2 = null;
+    this.humGainNode = null;
     
     this.modeToggleBtn = document.getElementById("modeToggleBtn");
     this.modeIcon = document.getElementById("modeIcon");
@@ -331,39 +339,245 @@ class DuplexVaniConsole {
     }
   }
 
-  // --- Telephonic 8kHz GSM Codec Simulator ---
-  toggleTelephonyCodec() {
-    this.isTelephonyMode = !this.isTelephonyMode;
+  // --- Bharat Telephony Acoustic DSP Engine ---
+  setAcousticPreset(preset) {
+    this.acousticPreset = preset;
 
-    if (this.isTelephonyMode) {
-      this.telephonyToggleBtn.classList.add("telephony-active");
-      this.telephonyStatusText.innerText = "ON";
-      this.codecBadge.innerText = "CODEC: G.711 (8kHz GSM)";
-      this.addLogEntry("SYSTEM", "8kHz GSM Telephonic Bandpass Filter (300Hz-3400Hz) engaged.");
-    } else {
-      this.telephonyToggleBtn.classList.remove("telephony-active");
-      this.telephonyStatusText.innerText = "OFF";
+    // Update preset pills UI
+    const pills = document.querySelectorAll(".tele-pill");
+    pills.forEach(p => {
+      if (p.getAttribute("data-preset") === preset) {
+        p.classList.add("active");
+      } else {
+        p.classList.remove("active");
+      }
+    });
+
+    if (preset === "hd") {
+      this.isTelephonyMode = false;
+      this.isNoiseActive = false;
+      this.stopBharatLineHum();
+      this.stopMarketNoise();
+
       this.codecBadge.innerText = "CODEC: 48kHz HD Wideband";
-      this.addLogEntry("SYSTEM", "Wideband 48kHz studio audio restored.");
+      if (this.bandwidthBadge) this.bandwidthBadge.innerText = "BANDWIDTH: 20Hz - 20kHz";
+      if (this.mosBadge) this.mosBadge.innerText = "MOS: 4.8 / 5.0 (STUDIO)";
+      this.noiseBadge.innerText = "AMBIENCE: PRISTINE CLEAN";
+      this.telephonyStatusText.innerText = "OFF";
+      this.telephonyToggleBtn.classList.remove("telephony-active");
+      this.noiseStatusText.innerText = "OFF";
+      this.noiseToggleBtn.classList.remove("noise-active");
+
+      this.addLogEntry("SYSTEM", "[ACOUSTIC] Studio HD 48kHz wideband audio active (20Hz-20kHz).");
+
+    } else if (preset === "gsm") {
+      this.isTelephonyMode = true;
+      this.isNoiseActive = false;
+      this.startBharatLineHum();
+      this.stopMarketNoise();
+
+      this.codecBadge.innerText = "CODEC: G.711 (8kHz GSM)";
+      if (this.bandwidthBadge) this.bandwidthBadge.innerText = "BANDWIDTH: 300Hz - 3400Hz";
+      if (this.mosBadge) this.mosBadge.innerText = "MOS: 3.2 / 5.0 (TOLL)";
+      this.noiseBadge.innerText = "AMBIENCE: 50Hz MAINS HUM";
+      this.telephonyStatusText.innerText = "ON";
+      this.telephonyToggleBtn.classList.add("telephony-active");
+      this.noiseStatusText.innerText = "OFF";
+      this.noiseToggleBtn.classList.remove("noise-active");
+
+      this.addLogEntry("SYSTEM", "[ACOUSTIC] 2G Telephony (8kHz GSM) engaged: G.711 Bandpass (300-3400Hz), carbon saturation & 50Hz mains hum.");
+
+    } else if (preset === "bazaar") {
+      this.isTelephonyMode = true;
+      this.isNoiseActive = true;
+      this.startBharatLineHum();
+      this.startMarketNoise();
+
+      this.codecBadge.innerText = "CODEC: G.711 (8kHz GSM)";
+      if (this.bandwidthBadge) this.bandwidthBadge.innerText = "BANDWIDTH: 300Hz - 3400Hz";
+      if (this.mosBadge) this.mosBadge.innerText = "MOS: 2.7 / 5.0 (NOISY)";
+      this.noiseBadge.innerText = "AMBIENCE: MANDI (-18dB SNR)";
+      this.telephonyStatusText.innerText = "ON";
+      this.telephonyToggleBtn.classList.add("telephony-active");
+      this.noiseStatusText.innerText = "ON (-18dB)";
+      this.noiseToggleBtn.classList.add("noise-active");
+
+      this.addLogEntry("SYSTEM", "[ACOUSTIC] Indian Bazaar mode engaged: 8kHz GSM + Mandi background chatter and scooter traffic (-18dB SNR).");
+
+    } else if (preset === "railway") {
+      this.isTelephonyMode = true;
+      this.isNoiseActive = false;
+      this.startBharatLineHum();
+      this.stopMarketNoise();
+
+      this.codecBadge.innerText = "CODEC: G.711 (8kHz PA)";
+      if (this.bandwidthBadge) this.bandwidthBadge.innerText = "BANDWIDTH: 300Hz - 3400Hz";
+      if (this.mosBadge) this.mosBadge.innerText = "MOS: 2.9 / 5.0 (ECHO)";
+      this.noiseBadge.innerText = "AMBIENCE: RAILWAY PA ECHO";
+      this.telephonyStatusText.innerText = "ON";
+      this.telephonyToggleBtn.classList.add("telephony-active");
+      this.noiseStatusText.innerText = "OFF";
+      this.noiseToggleBtn.classList.remove("noise-active");
+
+      this.addLogEntry("SYSTEM", "[ACOUSTIC] Indian Railway PA mode engaged: 8kHz GSM + 220ms Public Address slapback echo.");
     }
   }
 
-  // --- Indian Market & Traffic Noise Simulator (-18dB SNR) ---
-  toggleMarketNoise() {
-    this.isNoiseActive = !this.isNoiseActive;
-
-    if (this.isNoiseActive) {
-      this.startMarketNoise();
-      this.noiseToggleBtn.classList.add("noise-active");
-      this.noiseStatusText.innerText = "ON (-18dB)";
-      this.noiseBadge.innerText = "AMBIENCE: NOISY BAZAAR";
-      this.addLogEntry("SYSTEM", "Ambient Indian market chatter & traffic background noise (-18dB SNR) engaged.");
+  toggleTelephonyCodec() {
+    if (this.acousticPreset === "hd") {
+      this.setAcousticPreset("gsm");
     } else {
-      this.stopMarketNoise();
-      this.noiseToggleBtn.classList.remove("noise-active");
-      this.noiseStatusText.innerText = "OFF";
-      this.noiseBadge.innerText = "AMBIENCE: CLEAN";
-      this.addLogEntry("SYSTEM", "Ambient noise generator stopped. Clean acoustics restored.");
+      this.setAcousticPreset("hd");
+    }
+  }
+
+  toggleMarketNoise() {
+    if (this.acousticPreset === "bazaar") {
+      this.setAcousticPreset("gsm");
+    } else {
+      this.setAcousticPreset("bazaar");
+    }
+  }
+
+  // --- Real-time DSP Routing for 8kHz Bandpass, Saturation, and PA Acoustics ---
+  routeThroughAcousticProcessor(source, outputNode) {
+    if (this.acousticPreset === "hd" || !this.audioCtx) {
+      source.connect(outputNode);
+      return;
+    }
+
+    try {
+      // 1. Dual Highpass at 300Hz (24dB/octave Butterworth telephone cutoff)
+      const hp1 = this.audioCtx.createBiquadFilter();
+      hp1.type = "highpass";
+      hp1.frequency.value = 300;
+      hp1.Q.value = 0.707;
+
+      const hp2 = this.audioCtx.createBiquadFilter();
+      hp2.type = "highpass";
+      hp2.frequency.value = 300;
+      hp2.Q.value = 0.707;
+
+      // 2. Dual Lowpass at 3400Hz (24dB/octave G.711 telephone cutoff)
+      const lp1 = this.audioCtx.createBiquadFilter();
+      lp1.type = "lowpass";
+      lp1.frequency.value = 3400;
+      lp1.Q.value = 0.707;
+
+      const lp2 = this.audioCtx.createBiquadFilter();
+      lp2.type = "lowpass";
+      lp2.frequency.value = 3400;
+      lp2.Q.value = 0.707;
+
+      // 3. Earpiece Presence Resonance Peak at 2200Hz (+4.5dB)
+      const presence = this.audioCtx.createBiquadFilter();
+      presence.type = "peaking";
+      presence.frequency.value = 2200;
+      presence.Q.value = 1.2;
+      presence.gain.value = 4.5;
+
+      // 4. Carbon Microphone & GSM Codec Saturation (WaveShaper)
+      const shaper = this.audioCtx.createWaveShaper();
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const k = 15;
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+      }
+      shaper.curve = curve;
+      shaper.oversample = "2x";
+
+      // Connect filter stages in series
+      source.connect(hp1);
+      hp1.connect(hp2);
+      hp2.connect(lp1);
+      lp1.connect(lp2);
+      lp2.connect(presence);
+      presence.connect(shaper);
+
+      // 5. Special Presets (Railway PA Echo)
+      if (this.acousticPreset === "railway") {
+        const delay = this.audioCtx.createDelay(1.0);
+        delay.delayTime.value = 0.22; // 220ms railway station slapback
+        const feedback = this.audioCtx.createGain();
+        feedback.gain.value = 0.38;
+
+        const wetGain = this.audioCtx.createGain();
+        wetGain.gain.value = 0.45;
+
+        shaper.connect(outputNode); // Dry
+        shaper.connect(delay);
+        delay.connect(feedback);
+        feedback.connect(delay);
+        delay.connect(wetGain);
+        wetGain.connect(outputNode); // Wet
+      } else {
+        shaper.connect(outputNode);
+      }
+    } catch (e) {
+      console.warn("Acoustic DSP routing notice, falling back to direct output:", e);
+      source.connect(outputNode);
+    }
+  }
+
+  // --- Indian Subcontinent 50Hz Mains Hum + 100Hz Harmonic Generator ---
+  startBharatLineHum() {
+    this.stopBharatLineHum();
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (this.audioCtx.state === "suspended") this.audioCtx.resume();
+
+      const osc1 = this.audioCtx.createOscillator();
+      osc1.type = "sine";
+      osc1.frequency.value = 50.0; // 50Hz Indian Subcontinent mains grid
+
+      const osc2 = this.audioCtx.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.value = 100.0; // 2nd harmonic
+
+      const gain1 = this.audioCtx.createGain();
+      gain1.gain.value = 0.007; // Very gentle, authentic ground hum
+
+      const gain2 = this.audioCtx.createGain();
+      gain2.gain.value = 0.003;
+
+      osc1.connect(gain1);
+      osc2.connect(gain2);
+      gain1.connect(this.audioCtx.destination);
+      gain2.connect(this.audioCtx.destination);
+
+      if (this.sessionRecordDestination) {
+        gain1.connect(this.sessionRecordDestination);
+        gain2.connect(this.sessionRecordDestination);
+      }
+
+      osc1.start(0);
+      osc2.start(0);
+
+      this.humSourceNode1 = osc1;
+      this.humSourceNode2 = osc2;
+      this.humGainNode = gain1;
+    } catch (err) {
+      console.warn("Bharat line hum generator notice:", err);
+    }
+  }
+
+  stopBharatLineHum() {
+    if (this.humSourceNode1) {
+      try { this.humSourceNode1.stop(0); this.humSourceNode1.disconnect(); } catch (e) {}
+      this.humSourceNode1 = null;
+    }
+    if (this.humSourceNode2) {
+      try { this.humSourceNode2.stop(0); this.humSourceNode2.disconnect(); } catch (e) {}
+      this.humSourceNode2 = null;
+    }
+    if (this.humGainNode) {
+      try { this.humGainNode.disconnect(); } catch (e) {}
+      this.humGainNode = null;
     }
   }
 
@@ -376,7 +590,6 @@ class DuplexVaniConsole {
         this.audioCtx.resume();
       }
 
-      // Synthesize realistic 4-second brownian ambient noise buffer
       const sampleRate = this.audioCtx.sampleRate;
       const bufferSize = sampleRate * 4;
       const noiseBuffer = this.audioCtx.createBuffer(1, bufferSize, sampleRate);
@@ -385,7 +598,6 @@ class DuplexVaniConsole {
       let lastOut = 0.0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
-        // Brownian filter + low-frequency engine hum + periodic chatter murmur
         const t = i / sampleRate;
         const chatterMod = 0.8 + 0.2 * Math.sin(2 * Math.PI * 1.5 * t) + 0.1 * Math.sin(2 * Math.PI * 4.2 * t);
         lastOut = (lastOut + (0.02 * white)) / 1.02;
@@ -397,7 +609,7 @@ class DuplexVaniConsole {
       noiseSrc.loop = true;
 
       const gain = this.audioCtx.createGain();
-      gain.gain.value = 0.045; // Subtle realistic ambient level (-18dB SNR)
+      gain.gain.value = 0.04; // -18dB SNR level
 
       noiseSrc.connect(gain);
       gain.connect(this.audioCtx.destination);
@@ -409,7 +621,7 @@ class DuplexVaniConsole {
       this.noiseSource = noiseSrc;
       this.noiseGain = gain;
     } catch (e) {
-      console.warn("Noise generator error:", e);
+      console.warn("Market noise generator error:", e);
     }
   }
 
@@ -505,18 +717,8 @@ class DuplexVaniConsole {
       const gainNode = this.audioCtx.createGain();
       gainNode.gain.value = 1.0;
 
-      // Telephony GSM Simulation (Bandpass 300Hz - 3400Hz filter)
-      if (this.isTelephonyMode) {
-        const bandpass = this.audioCtx.createBiquadFilter();
-        bandpass.type = "bandpass";
-        bandpass.frequency.value = 1850;
-        bandpass.Q.value = 0.9;
-
-        source.connect(bandpass);
-        bandpass.connect(gainNode);
-      } else {
-        source.connect(gainNode);
-      }
+      // Route through Bharat Telephony Acoustic DSP Processor
+      this.routeThroughAcousticProcessor(source, gainNode);
 
       if (this.analyser) {
         gainNode.connect(this.analyser);
@@ -1161,6 +1363,15 @@ class DuplexVaniConsole {
         pill.classList.add("active");
         const lang = pill.getAttribute("data-lang");
         this.updateLanguagePrompts(lang);
+      });
+    });
+
+    // Bharat Telephony Acoustic Preset Pills Listener
+    const telePills = document.querySelectorAll(".tele-pill");
+    telePills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        const preset = pill.getAttribute("data-preset");
+        this.setAcousticPreset(preset);
       });
     });
 

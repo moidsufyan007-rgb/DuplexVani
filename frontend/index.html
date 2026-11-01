@@ -83,6 +83,8 @@
           </div>
           <div class="channel-meta">
             <span class="meta-tag" id="codecBadge">CODEC: 48kHz HD</span>
+            <span class="meta-tag" id="bandwidthBadge">BANDWIDTH: 20Hz - 20kHz</span>
+            <span class="meta-tag" id="mosBadge">MOS: 4.8 / 5.0</span>
             <span class="meta-tag" id="noiseBadge">AMBIENCE: CLEAN</span>
             <span class="meta-tag">VOICE: DEVANSH (MALE)</span>
           </div>
@@ -118,6 +120,25 @@
             <button class="lang-pill" data-lang="hi-IN">🇮🇳 Hindi / Hinglish</button>
             <button class="lang-pill" data-lang="te-IN">🇮🇳 Telugu (తెలుగు)</button>
             <button class="lang-pill" data-lang="ta-IN">🇮🇳 Tamil (தமிழ்)</button>
+          </div>
+        </div>
+
+        <!-- Bharat Telephony Acoustic Environment Simulator -->
+        <div class="telephony-presets-cluster">
+          <span class="telephony-presets-label">BHARAT ACOUSTIC ENVIRONMENT:</span>
+          <div class="telephony-pills" id="telephonyPills">
+            <button class="tele-pill active" data-preset="hd" title="Wideband 48kHz pristine studio audio">
+              <span class="tele-dot"></span> 🎙️ Studio HD (48kHz)
+            </button>
+            <button class="tele-pill" data-preset="gsm" title="Real-world 8kHz GSM/PSTN bandpass (300Hz-3400Hz) + carbon mic saturation + 50Hz line hum">
+              <span class="tele-dot"></span> 📞 2G Telephony (8kHz GSM)
+            </button>
+            <button class="tele-pill" data-preset="bazaar" title="Noisy Indian Mandi / Vegetable Market with scooter traffic (-18dB SNR)">
+              <span class="tele-dot"></span> 🛒 Indian Bazaar (-18dB)
+            </button>
+            <button class="tele-pill" data-preset="railway" title="Indian Railway Station PA public address echo & slapback">
+              <span class="tele-dot"></span> 🚉 Railway PA (Echo)
+            </button>
           </div>
         </div>
 
