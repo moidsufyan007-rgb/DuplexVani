@@ -418,6 +418,34 @@ body.enterprise-theme {
   font-family: var(--font-sans);
 }
 
+.btn-call {
+  background: #10b981;
+  color: #fff;
+  flex: 1.2;
+}
+
+.btn-call:hover {
+  background: #059669;
+}
+
+.btn-call.in-call {
+  background: #ef4444;
+  animation: callGlow 1.8s infinite alternate;
+}
+
+.btn-call.in-call:hover {
+  background: #dc2626;
+}
+
+@keyframes callGlow {
+  from {
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+  }
+  to {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.85);
+  }
+}
+
 .btn-primary {
   background: var(--color-blue);
   color: #fff;

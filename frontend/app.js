@@ -31,6 +31,10 @@ class DuplexVaniConsole {
     this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
     this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
     this.isNoiseActive = false;       // Default: Clean ambience (Off)
+    this.isCallActive = false;        // Hands-free continuous live call state
+    this.silenceTimeout = null;
+    this.silenceDelayMs = 750;        // 750ms natural pause triggers automatic answer
+    this.recognizedTranscript = "";
     
     // UI Elements
     this.statusBanner = document.getElementById("statusBanner");
@@ -535,19 +539,19 @@ class DuplexVaniConsole {
     }
   }
 
-  // --- Microphone & Audio Capture (MediaRecorder) ---
-  async toggleMic() {
-    if (this.isRecording) {
-      this.stopMic();
+  // --- Hands-Free Continuous Live Call Engine ---
+  async toggleCall() {
+    if (this.isCallActive) {
+      this.endCall();
     } else {
-      await this.startMic();
+      await this.startCall();
     }
   }
 
-  async startMic() {
+  async startCall() {
     try {
       if (!this.audioCtx) {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
       }
       if (this.audioCtx.state === "suspended") {
         await this.audioCtx.resume();
@@ -555,7 +559,7 @@ class DuplexVaniConsole {
 
       if (!this.micStream) {
         this.micStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 } 
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
         });
       }
 
@@ -568,96 +572,56 @@ class DuplexVaniConsole {
       }
       this.micSourceNode = micSource;
 
-      this.audioChunks = [];
-      try {
-        this.mediaRecorder = new MediaRecorder(this.micStream);
-        this.mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) this.audioChunks.push(e.data);
-        };
-        this.mediaRecorder.start(250);
-      } catch (mrErr) {
-        console.warn("MediaRecorder init notice:", mrErr);
-      }
-
-      this.isRecording = true;
-      this.toggleMicBtn.classList.add("recording");
-      this.toggleMicBtnText.innerText = "Commit Audio Stream";
+      this.isCallActive = true;
+      this.toggleMicBtn.className = "btn-console btn-call in-call";
+      this.toggleMicBtnText.innerText = "End Live Call";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Channel recording active. Speak, then click Commit.";
+      this.subtitleText.innerText = "Live call active! Speak naturally in Hindi, Hinglish, Telugu, Tamil, or English.";
+      this.addLogEntry("SYSTEM", "Live full-duplex call initiated. Hands-free turn-taking active.");
 
-      this.startSpeechRecognition();
+      this.startContinuousSpeechRecognition();
 
     } catch (err) {
-      console.warn("Microphone access notice:", err);
-      this.isRecording = true;
-      this.toggleMicBtn.classList.add("recording");
-      this.toggleMicBtnText.innerText = "Stop Channel";
-      this.setState("LISTENING");
-      this.subtitleText.innerText = "Channel online. Click a benchmark scenario below.";
+      console.warn("Microphone access error:", err);
+      this.subtitleText.innerText = "Microphone access blocked. Click chips below or allow mic permission.";
+      alert("Microphone permission required for Live Call: " + err.message);
     }
   }
 
-  async stopMic() {
-    let capturedBlob = null;
-    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
-      this.mediaRecorder.stop();
-      capturedBlob = new Blob(this.audioChunks, { type: "audio/wav" });
+  endCall() {
+    this.isCallActive = false;
+    if (this.silenceTimeout) {
+      clearTimeout(this.silenceTimeout);
+      this.silenceTimeout = null;
     }
 
     if (this.speechRec) {
-      try { this.speechRec.stop(); } catch(e){}
+      try { this.speechRec.stop(); } catch (e) {}
+      this.speechRec = null;
     }
 
-    const spokenText = (this.recognizedTranscript || "").trim();
-    this.recognizedTranscript = "";
-
-    this.isRecording = false;
-    this.toggleMicBtn.classList.remove("recording");
-    this.toggleMicBtnText.innerText = "Connect Voice Stream";
-    this.setState("PROCESSING");
-    this.subtitleText.innerText = spokenText ? `Processing: "${spokenText}"...` : "Evaluating voice stream...";
-
-    if (spokenText) {
-      // If browser speech recognition captured the user's spoken words, send immediately
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
-          type: "USER_SPEECH_FINAL",
-          text: spokenText,
-          language: this.selectedLanguage,
-          is_live: this.isLiveMode
-        }));
-        this.turnCount++;
-        this.turnCountEl.innerText = this.turnCount;
-      }
-    } else if (capturedBlob && capturedBlob.size > 500) {
-      const reader = new FileReader();
-      reader.readAsDataURL(capturedBlob);
-      reader.onloadend = () => {
-        const base64Audio = reader.result.split(",")[1];
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({
-            type: "USER_SPEECH_FINAL",
-            audio_b64: base64Audio,
-            language: this.selectedLanguage,
-            is_live: this.isLiveMode
-          }));
-          this.turnCount++;
-          this.turnCountEl.innerText = this.turnCount;
-        }
-      };
-    } else {
-      this.setState("IDLE");
-      this.subtitleText.innerText = "Stream closed. Click 'Connect Voice' to resume.";
+    if (this.currentSource) {
+      try { this.currentSource.stop(0); } catch (e) {}
+      this.currentSource = null;
     }
+
+    this.toggleMicBtn.className = "btn-console btn-call";
+    this.toggleMicBtnText.innerText = "Start Live Call";
+    this.setState("IDLE");
+    this.subtitleText.innerText = "Call disconnected. Click 'Start Live Call' to begin.";
+    this.addLogEntry("SYSTEM", "Live call disconnected.");
   }
 
-  startSpeechRecognition() {
+  startContinuousSpeechRecognition() {
     if (this.speechPermissionDenied) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      this.subtitleText.innerText = "Browser doesn't support Web Speech API. Use Google Chrome for live voice.";
+      return;
+    }
 
     if (this.speechRec) {
-      try { this.speechRec.stop(); } catch(e){}
+      try { this.speechRec.stop(); } catch (e) {}
     }
 
     this.recognizedTranscript = "";
@@ -667,6 +631,12 @@ class DuplexVaniConsole {
     rec.lang = this.selectedLanguage;
 
     rec.onresult = (event) => {
+      // Automatic Barge-in: if assistant is speaking and user speaks, cut off immediately!
+      if (this.currentState === "SPEAKING") {
+        console.log("Speech detected during assistant turn: Triggering instant barge-in!");
+        this.triggerBargeIn();
+      }
+
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
@@ -675,14 +645,55 @@ class DuplexVaniConsole {
           interim += event.results[i][0].transcript;
         }
       }
+
       const heard = (this.recognizedTranscript + interim).trim();
       if (heard) {
-        this.subtitleText.innerText = `Heard: "${heard}"`;
-      }
-      if (this.currentState === "SPEAKING") {
-        this.triggerBargeIn();
+        this.subtitleText.innerText = `You: "${heard}"`;
+        // Reset natural pause/silence timer
+        this.resetSilenceTimer();
       }
     };
+
+    rec.onerror = (e) => {
+      console.warn("Speech recognition notice:", e.error);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        this.speechPermissionDenied = true;
+      }
+    };
+
+    rec.onend = () => {
+      // Reconnect microphone listener seamlessly while call is active
+      if (this.isCallActive) {
+        try { rec.start(); } catch (e) {}
+      }
+    };
+
+    try {
+      rec.start();
+      this.speechRec = rec;
+    } catch (e) {
+      console.warn("Speech recognition start notice:", e);
+    }
+  }
+
+  resetSilenceTimer() {
+    if (this.silenceTimeout) {
+      clearTimeout(this.silenceTimeout);
+      this.silenceTimeout = null;
+    }
+
+    if (!this.isCallActive) return;
+
+    // Detect 750ms of silence after the user finishes speaking
+    this.silenceTimeout = setTimeout(() => {
+      const textToSend = (this.recognizedTranscript || "").trim();
+      if (textToSend.length > 0 && this.currentState !== "SPEAKING" && this.currentState !== "PROCESSING") {
+        console.log("Automatic turn-taking triggered for utterance:", textToSend);
+        this.sendFinalUtterance(textToSend);
+        this.recognizedTranscript = "";
+      }
+    }, this.silenceDelayMs);
+  }
 
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -1126,7 +1137,7 @@ class DuplexVaniConsole {
 
   // --- Event Listeners ---
   initEventListeners() {
-    this.toggleMicBtn.addEventListener("click", () => this.toggleMic());
+    this.toggleMicBtn.addEventListener("click", () => this.toggleCall());
     this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
     this.telephonyToggleBtn.addEventListener("click", () => this.toggleTelephonyCodec());
     this.noiseToggleBtn.addEventListener("click", () => this.toggleMarketNoise());
