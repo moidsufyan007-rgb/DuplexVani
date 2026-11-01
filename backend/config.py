@@ -10,6 +10,7 @@ load_dotenv(BASE_DIR / ".env")
 class Settings:
     PROJECT_NAME: str = "DuplexVani"
     GNANI_API_KEY: str = os.getenv("GNANI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Official Gnani Vachana AI Voice Endpoints
     GNANI_PRISMA_STT_URL: str = os.getenv("GNANI_PRISMA_STT_URL", "https://api.vachana.ai/stt/v3")
