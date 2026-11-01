@@ -695,18 +695,6 @@ class DuplexVaniConsole {
     }, this.silenceDelayMs);
   }
 
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        this.speechPermissionDenied = true;
-      }
-    };
-
-    try {
-      rec.start();
-      this.speechRec = rec;
-    } catch(e){}
-  }
-
   sendFinalUtterance(text) {
     if (this.audioCtx && this.audioCtx.state === "suspended") {
       this.audioCtx.resume();
