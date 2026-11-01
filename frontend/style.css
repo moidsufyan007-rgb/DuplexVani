@@ -734,6 +734,227 @@ body.enterprise-theme {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* Tab Pill Group */
+.tab-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.vault-count-badge {
+  font-size: 0.6rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+  font-weight: 700;
+}
+
+/* Vault Entries Container */
+.vault-entries {
+  padding: 0.85rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex: 1;
+  max-height: 340px;
+}
+
+.empty-vault-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  gap: 0.4rem;
+}
+
+.empty-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.2rem;
+  opacity: 0.7;
+}
+
+.empty-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-desc {
+  font-size: 0.75rem;
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+.vault-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.vault-card {
+  background: #111722;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  transition: border-color 0.15s ease;
+}
+
+.vault-card:hover {
+  border-color: var(--border-strong);
+}
+
+.vault-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vault-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.vault-badge {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-green);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.vault-time {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.vault-meta-row {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.vault-meta-row strong {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.vault-barge-stat strong {
+  color: #fca5a5;
+}
+
+.vault-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.btn-vault-action {
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.btn-vault-play {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.btn-vault-play:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #fff;
+}
+
+.btn-vault-play.playing {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.btn-vault-download {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #86efac;
+}
+
+.btn-vault-download:hover {
+  background: rgba(16, 185, 129, 0.25);
+  color: #fff;
+}
+
+.btn-vault-delete {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.btn-vault-delete:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
 .log-title {
   font-family: var(--font-mono);
   font-size: 0.65rem;

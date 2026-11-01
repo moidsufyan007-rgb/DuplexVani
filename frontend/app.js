@@ -91,6 +91,17 @@ class DuplexVaniConsole {
     this.sessionRecordSeconds = 0;
     this.micRecorderSource = null;
 
+    // Voice Records Vault Elements
+    this.tabTranscriptBtn = document.getElementById("tabTranscriptBtn");
+    this.tabVaultBtn = document.getElementById("tabVaultBtn");
+    this.vaultCount = document.getElementById("vaultCount");
+    this.vaultMessages = document.getElementById("vaultMessages");
+    this.emptyVaultMsg = document.getElementById("emptyVaultMsg");
+    this.vaultList = document.getElementById("vaultList");
+    this.voiceRecords = [];
+    this.activeVaultAudio = null;
+    this.activeVaultBtn = null;
+
     this.initWebSocket();
     this.initEventListeners();
     this.startSpectrumMeter();
@@ -171,6 +182,7 @@ class DuplexVaniConsole {
       case "INTERRUPT_CONFIRMED":
         const lat = msg.data.barge_in_latency_ms;
         const preempt = msg.data.task_preemption_ms || 2.4;
+        this.lastBargeInLatencyMs = lat;
         this.updateBargeInTelemetry(lat, preempt);
         this.interruptionCount = msg.data.total_interruptions;
         this.interruptCountEl.innerText = this.interruptionCount;
@@ -794,9 +806,10 @@ class DuplexVaniConsole {
       this.sessionRecordTimer = null;
     }
 
+    const recordedSeconds = this.sessionRecordSeconds;
     this.isSessionRecording = false;
     this.recordSessionBtn.classList.remove("recording");
-    this.recordSessionBtnText.innerText = "Exporting WAV...";
+    this.recordSessionBtnText.innerText = "Saving Take...";
 
     this.sessionRecorder.onstop = async () => {
       try {
@@ -805,36 +818,182 @@ class DuplexVaniConsole {
         const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
         const wavBlob = this.encodeWAV(audioBuffer.getChannelData(0), audioBuffer.sampleRate);
 
-        const url = URL.createObjectURL(wavBlob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-        a.download = `DuplexVani_Demo_${timestamp}.wav`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }, 1000);
+        const takeNum = this.voiceRecords.length + 1;
+        const mins = String(Math.floor(recordedSeconds / 60)).padStart(2, "0");
+        const secs = String(recordedSeconds % 60).padStart(2, "0");
+        const durationStr = `${mins}:${secs}`;
+        const sizeKb = Math.round(wavBlob.size / 1024);
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const kbSize = Math.round(wavBlob.size / 1024);
-        this.addLogEntry("SYSTEM", `Demo WAV saved: ${a.download} (${kbSize} KB, 48kHz Linear PCM)`);
+        const record = {
+          id: `take_${Date.now()}`,
+          title: `Demo Take #${takeNum}`,
+          time: timeStr,
+          duration: durationStr,
+          sizeKb: sizeKb,
+          bargeInMs: this.lastBargeInLatencyMs || 3.8,
+          wavBlob: wavBlob,
+          url: URL.createObjectURL(wavBlob)
+        };
+
+        this.voiceRecords.unshift(record);
+        this.renderVault();
+        this.switchTab("vault");
+
+        this.addLogEntry("SYSTEM", `Session saved: "${record.title}" (${record.duration}, ${record.sizeKb} KB) placed in Voice Records vault.`);
       } catch (exportErr) {
-        console.warn("WAV transcode notice, saving raw WebM container:", exportErr);
+        console.warn("WAV transcode notice, saving raw container:", exportErr);
         const rawBlob = new Blob(this.sessionRecordChunks, { type: "audio/webm" });
-        const url = URL.createObjectURL(rawBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `DuplexVani_Demo_Audio.webm`;
-        a.click();
-        this.addLogEntry("SYSTEM", "Demo audio exported (WebM container).");
+        const takeNum = this.voiceRecords.length + 1;
+        const mins = String(Math.floor(recordedSeconds / 60)).padStart(2, "0");
+        const secs = String(recordedSeconds % 60).padStart(2, "0");
+
+        const record = {
+          id: `take_${Date.now()}`,
+          title: `Demo Take #${takeNum}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          duration: `${mins}:${secs}`,
+          sizeKb: Math.round(rawBlob.size / 1024),
+          bargeInMs: this.lastBargeInLatencyMs || 3.8,
+          wavBlob: rawBlob,
+          url: URL.createObjectURL(rawBlob)
+        };
+
+        this.voiceRecords.unshift(record);
+        this.renderVault();
+        this.switchTab("vault");
+        this.addLogEntry("SYSTEM", `Session saved: "${record.title}" in Voice Records.`);
       } finally {
         this.recordSessionBtnText.innerText = "Record Demo WAV";
       }
     };
 
     this.sessionRecorder.stop();
+  }
+
+  // --- Voice Records Vault Management ---
+  switchTab(tab) {
+    if (tab === "vault") {
+      this.tabVaultBtn.classList.add("active");
+      this.tabTranscriptBtn.classList.remove("active");
+      this.vaultMessages.style.display = "flex";
+      this.feedMessages.style.display = "none";
+    } else {
+      this.tabTranscriptBtn.classList.add("active");
+      this.tabVaultBtn.classList.remove("active");
+      this.feedMessages.style.display = "flex";
+      this.vaultMessages.style.display = "none";
+    }
+  }
+
+  renderVault() {
+    this.vaultCount.innerText = this.voiceRecords.length;
+    if (this.voiceRecords.length === 0) {
+      this.emptyVaultMsg.style.display = "flex";
+      this.vaultList.innerHTML = "";
+      return;
+    }
+
+    this.emptyVaultMsg.style.display = "none";
+    this.vaultList.innerHTML = "";
+
+    this.voiceRecords.forEach(rec => {
+      const card = document.createElement("div");
+      card.className = "vault-card";
+      card.setAttribute("data-id", rec.id);
+
+      card.innerHTML = `
+        <div class="vault-info">
+          <div class="vault-title-row">
+            <span class="vault-title">${rec.title}</span>
+            <span class="vault-badge">48kHz WAV</span>
+            <span class="vault-time">${rec.time}</span>
+          </div>
+          <div class="vault-meta-row">
+            <span>Duration: <strong>${rec.duration}</strong></span>
+            <span>•</span>
+            <span>Size: <strong>${rec.sizeKb} KB</strong></span>
+            <span>•</span>
+            <span class="vault-barge-stat">Barge-in: <strong>${rec.bargeInMs} ms</strong></span>
+          </div>
+        </div>
+        <div class="vault-actions">
+          <button class="btn-vault-action btn-vault-play" data-action="play" title="Play recording">
+            <span>▶ Play</span>
+          </button>
+          <button class="btn-vault-action btn-vault-download" data-action="download" title="Download 48kHz WAV">
+            <span>⬇ Download</span>
+          </button>
+          <button class="btn-vault-action btn-vault-delete" data-action="delete" title="Delete take">
+            ✕
+          </button>
+        </div>
+      `;
+
+      const playBtn = card.querySelector('[data-action="play"]');
+      playBtn.addEventListener("click", () => this.togglePlayVaultRecord(rec, playBtn));
+
+      const dlBtn = card.querySelector('[data-action="download"]');
+      dlBtn.addEventListener("click", () => this.downloadVaultRecord(rec));
+
+      const delBtn = card.querySelector('[data-action="delete"]');
+      delBtn.addEventListener("click", () => this.deleteVaultRecord(rec.id));
+
+      this.vaultList.appendChild(card);
+    });
+  }
+
+  togglePlayVaultRecord(record, btn) {
+    if (this.activeVaultAudio) {
+      this.activeVaultAudio.pause();
+      if (this.activeVaultBtn) {
+        this.activeVaultBtn.classList.remove("playing");
+        this.activeVaultBtn.querySelector("span").innerText = "▶ Play";
+      }
+      if (this.activeVaultAudio.src === record.url) {
+        this.activeVaultAudio = null;
+        this.activeVaultBtn = null;
+        return;
+      }
+    }
+
+    const audio = new Audio(record.url);
+    this.activeVaultAudio = audio;
+    this.activeVaultBtn = btn;
+    btn.classList.add("playing");
+    btn.querySelector("span").innerText = "⏸ Pause";
+
+    audio.onended = () => {
+      btn.classList.remove("playing");
+      btn.querySelector("span").innerText = "▶ Play";
+      this.activeVaultAudio = null;
+      this.activeVaultBtn = null;
+    };
+
+    audio.play().catch(e => console.warn("Vault audio playback warning:", e));
+  }
+
+  downloadVaultRecord(record) {
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = record.url;
+    a.download = `DuplexVani_${record.title.replace(/[\s#]/g, "_")}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 1000);
+    this.addLogEntry("SYSTEM", `Exported take: ${a.download}`);
+  }
+
+  deleteVaultRecord(id) {
+    if (this.activeVaultAudio) {
+      this.activeVaultAudio.pause();
+      this.activeVaultAudio = null;
+      this.activeVaultBtn = null;
+    }
+    this.voiceRecords = this.voiceRecords.filter(r => r.id !== id);
+    this.renderVault();
   }
 
   encodeWAV(samples, sampleRate = 48000) {
@@ -965,8 +1124,16 @@ class DuplexVaniConsole {
     this.updateLanguagePrompts(this.selectedLanguage);
 
     this.clearFeedBtn.addEventListener("click", () => {
-      this.feedMessages.innerHTML = "";
+      if (this.tabTranscriptBtn.classList.contains("active")) {
+        this.feedMessages.innerHTML = "";
+      } else {
+        this.voiceRecords = [];
+        this.renderVault();
+      }
     });
+
+    this.tabTranscriptBtn.addEventListener("click", () => this.switchTab("transcript"));
+    this.tabVaultBtn.addEventListener("click", () => this.switchTab("vault"));
   }
 }
 

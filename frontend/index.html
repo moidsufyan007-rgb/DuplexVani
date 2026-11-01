@@ -246,18 +246,36 @@
           </div>
         </div>
 
-        <!-- Chronological Call Event Log -->
+        <!-- Chronological Call Event Log & Voice Records Vault -->
         <div class="log-stream-wrapper">
           <div class="log-toolbar">
-            <span class="log-title">REAL-TIME CALL TRANSCRIPT</span>
-            <button id="clearFeedBtn" class="log-btn-action">Clear Log</button>
+            <div class="tab-pill-group">
+              <button class="tab-btn active" id="tabTranscriptBtn">CALL TRANSCRIPT</button>
+              <button class="tab-btn" id="tabVaultBtn">
+                VOICE RECORDS
+                <span class="vault-count-badge" id="vaultCount">0</span>
+              </button>
+            </div>
+            <button id="clearFeedBtn" class="log-btn-action">Clear</button>
           </div>
+
+          <!-- Tab 1: Live Call Transcript -->
           <div class="log-entries" id="feedMessages">
             <div class="log-entry system-entry">
               <span class="entry-time">[00:00:00]</span>
               <span class="entry-badge">SYSTEM</span>
               <p>DuplexVani Gateway active. Ready for streaming full-duplex session.</p>
             </div>
+          </div>
+
+          <!-- Tab 2: Voice Records Vault -->
+          <div class="vault-entries" id="vaultMessages" style="display: none;">
+            <div class="empty-vault-state" id="emptyVaultMsg">
+              <div class="empty-icon">🎙️</div>
+              <span class="empty-title">No Voice Takes Saved Yet</span>
+              <p class="empty-desc">Click <strong>"Record Demo WAV"</strong> to capture a dual-channel session take with live barge-in.</p>
+            </div>
+            <div class="vault-list" id="vaultList"></div>
           </div>
         </div>
       </section>
