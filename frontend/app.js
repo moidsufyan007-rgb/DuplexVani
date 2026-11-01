@@ -80,6 +80,17 @@ class DuplexVaniConsole {
     this.canvas = document.getElementById("visualizerCanvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
+    // Session Recording & WAV Export Elements
+    this.recordSessionBtn = document.getElementById("recordSessionBtn");
+    this.recordSessionBtnText = document.getElementById("recordSessionBtnText");
+    this.isSessionRecording = false;
+    this.sessionRecorder = null;
+    this.sessionRecordChunks = [];
+    this.sessionRecordDestination = null;
+    this.sessionRecordTimer = null;
+    this.sessionRecordSeconds = 0;
+    this.micRecorderSource = null;
+
     this.initWebSocket();
     this.initEventListeners();
     this.startSpectrumMeter();
@@ -370,6 +381,9 @@ class DuplexVaniConsole {
 
       noiseSrc.connect(gain);
       gain.connect(this.audioCtx.destination);
+      if (this.sessionRecordDestination) {
+        gain.connect(this.sessionRecordDestination);
+      }
       noiseSrc.start(0);
 
       this.noiseSource = noiseSrc;
@@ -485,6 +499,9 @@ class DuplexVaniConsole {
         gainNode.connect(this.analyser);
       }
       gainNode.connect(this.audioCtx.destination);
+      if (this.sessionRecordDestination) {
+        gainNode.connect(this.sessionRecordDestination);
+      }
 
       source.onended = () => {
         if (this.activePlaybackId === playbackId) {
@@ -534,6 +551,10 @@ class DuplexVaniConsole {
       this.analyser.fftSize = 256;
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
       micSource.connect(this.analyser);
+      if (this.sessionRecordDestination) {
+        micSource.connect(this.sessionRecordDestination);
+      }
+      this.micSourceNode = micSource;
 
       this.audioChunks = [];
       try {
@@ -709,6 +730,146 @@ class DuplexVaniConsole {
     });
   }
 
+  // --- 1-Click Session Audio Recording & WAV Exporter ---
+  async toggleSessionRecording() {
+    if (this.isSessionRecording) {
+      await this.stopSessionRecording();
+    } else {
+      await this.startSessionRecording();
+    }
+  }
+
+  async startSessionRecording() {
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+      }
+      if (this.audioCtx.state === "suspended") {
+        await this.audioCtx.resume();
+      }
+      if (!this.sessionRecordDestination) {
+        this.sessionRecordDestination = this.audioCtx.createMediaStreamDestination();
+      }
+
+      // If mic is active, ensure it connects to the recorder stream
+      if (this.micSourceNode) {
+        try { this.micSourceNode.connect(this.sessionRecordDestination); } catch (e) {}
+      }
+
+      this.sessionRecordChunks = [];
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") 
+        ? "audio/webm;codecs=opus" 
+        : "audio/webm";
+      this.sessionRecorder = new MediaRecorder(this.sessionRecordDestination.stream, { mimeType: mime });
+
+      this.sessionRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) this.sessionRecordChunks.push(e.data);
+      };
+
+      this.sessionRecorder.start(250);
+      this.isSessionRecording = true;
+      this.recordSessionBtn.classList.add("recording");
+      this.sessionRecordSeconds = 0;
+      this.recordSessionBtnText.innerText = "● REC (00:00)";
+      this.addLogEntry("SYSTEM", "Dual-channel studio audio recording started. Capturing user mic + Devansh voice.");
+
+      this.sessionRecordTimer = setInterval(() => {
+        this.sessionRecordSeconds++;
+        const mins = String(Math.floor(this.sessionRecordSeconds / 60)).padStart(2, "0");
+        const secs = String(this.sessionRecordSeconds % 60).padStart(2, "0");
+        this.recordSessionBtnText.innerText = `● REC (${mins}:${secs})`;
+      }, 1000);
+
+    } catch (err) {
+      console.error("Session recording init error:", err);
+      this.addLogEntry("SYSTEM", `Failed to initialize session recorder: ${err.message}`);
+    }
+  }
+
+  async stopSessionRecording() {
+    if (!this.sessionRecorder || this.sessionRecorder.state === "inactive") return;
+
+    if (this.sessionRecordTimer) {
+      clearInterval(this.sessionRecordTimer);
+      this.sessionRecordTimer = null;
+    }
+
+    this.isSessionRecording = false;
+    this.recordSessionBtn.classList.remove("recording");
+    this.recordSessionBtnText.innerText = "Exporting WAV...";
+
+    this.sessionRecorder.onstop = async () => {
+      try {
+        const rawBlob = new Blob(this.sessionRecordChunks, { type: "audio/webm" });
+        const arrayBuffer = await rawBlob.arrayBuffer();
+        const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+        const wavBlob = this.encodeWAV(audioBuffer.getChannelData(0), audioBuffer.sampleRate);
+
+        const url = URL.createObjectURL(wavBlob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        a.download = `DuplexVani_Demo_${timestamp}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 1000);
+
+        const kbSize = Math.round(wavBlob.size / 1024);
+        this.addLogEntry("SYSTEM", `Demo WAV saved: ${a.download} (${kbSize} KB, 48kHz Linear PCM)`);
+      } catch (exportErr) {
+        console.warn("WAV transcode notice, saving raw WebM container:", exportErr);
+        const rawBlob = new Blob(this.sessionRecordChunks, { type: "audio/webm" });
+        const url = URL.createObjectURL(rawBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DuplexVani_Demo_Audio.webm`;
+        a.click();
+        this.addLogEntry("SYSTEM", "Demo audio exported (WebM container).");
+      } finally {
+        this.recordSessionBtnText.innerText = "Record Demo WAV";
+      }
+    };
+
+    this.sessionRecorder.stop();
+  }
+
+  encodeWAV(samples, sampleRate = 48000) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // Linear PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // Byte rate
+    view.setUint16(32, 2, true); // Block align
+    view.setUint16(34, 16, true); // 16-bit
+    writeString(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return new Blob([view], { type: "audio/wav" });
+  }
+
   // --- Professional Linear Studio Spectrum Bars ---
   startSpectrumMeter() {
     const bufferLength = 48;
@@ -782,6 +943,7 @@ class DuplexVaniConsole {
     this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
     this.telephonyToggleBtn.addEventListener("click", () => this.toggleTelephonyCodec());
     this.noiseToggleBtn.addEventListener("click", () => this.toggleMarketNoise());
+    this.recordSessionBtn.addEventListener("click", () => this.toggleSessionRecording());
     
     this.interruptBtn.addEventListener("click", () => {
       if (this.currentState === "SPEAKING") {

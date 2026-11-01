@@ -449,6 +449,36 @@ body.enterprise-theme {
   cursor: not-allowed;
 }
 
+.btn-record {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: #c4b5fd;
+  flex: 1;
+}
+
+.btn-record:hover {
+  background: rgba(139, 92, 246, 0.25);
+  color: #fff;
+}
+
+.btn-record.recording {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--color-red);
+  color: #fca5a5;
+  animation: pulseRecording 1.4s infinite alternate;
+}
+
+@keyframes pulseRecording {
+  from {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+  to {
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.8);
+    border-color: rgba(239, 68, 68, 1);
+  }
+}
+
 .kbd-hint {
   font-family: var(--font-mono);
   font-size: 0.65rem;
