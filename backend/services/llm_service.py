@@ -62,14 +62,16 @@ class LLMService:
             f"You are speaking out loud to the user via Gnani Timbre speech synthesis.\n"
             f"CRITICAL RULES:\n"
             f"1. Respond strictly in {target_lang}.\n"
-            f"2. Keep responses brief (1-2 spoken sentences maximum, under 30 words).\n"
+            f"2. Keep responses brief (1-2 spoken sentences maximum, under 25 words).\n"
             f"3. Strictly DO NOT use markdown, bolding, asterisks, bullet points, numbered lists, or emojis. "
             f"The output must be pure plain text suitable for direct speech synthesis.\n"
+            f"4. NEVER start answers with repetitive filler phrases like 'Ji boliye' or 'G. Bolie' or 'Haan boliye'. "
+            f"Answer the user's intent directly, naturally, and conversationally.\n"
         )
         if was_interrupted:
             system_instruction += (
-                "4. NOTE: The user just interrupted you while you were speaking! "
-                "Briefly acknowledge that you stopped to listen (e.g. 'Ji boliye...', 'Yes, go ahead!'), then answer their query.\n"
+                "5. NOTE: The user just interrupted you while you were speaking! "
+                "Briefly acknowledge with 'Sure' or 'Got it' and directly address their statement.\n"
             )
 
         # Build contents from recent conversation turns
@@ -149,7 +151,7 @@ class LLMService:
         # --- HINDI & HINGLISH (Default) ---
         else:
             if was_interrupted:
-                return "Ji boliye, maine bolna band kar diya. Aap kya keh rahe the?"
+                return "Haan, main sun raha hoon. Kahiye?"
             if any(w in user_lower for w in ["ruko", "stop", "wait", "suno", "arrey", "arre"]):
                 return "Ji bilkul, main ruk gaya. Kahiye, main sun raha hoon."
             if any(w in user_lower for w in ["kya ho", "who are you", "kaun ho", "duplex"]):

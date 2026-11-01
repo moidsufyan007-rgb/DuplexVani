@@ -397,6 +397,56 @@ body.enterprise-theme {
   display: block;
 }
 
+/* Language Pills Cluster */
+.lang-pills-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: #0f1520;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  gap: 0.5rem;
+}
+
+.lang-pills-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.lang-pills {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.lang-pill {
+  background: #151d2b;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-sans);
+}
+
+.lang-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.lang-pill.active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--color-blue);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
 /* Operator Controls */
 .operator-controls {
   display: flex;

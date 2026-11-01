@@ -85,7 +85,7 @@ async def process_speech_turn(
         manager.set_state(VoiceState.PROCESSING)
         await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
 
-        was_interrupted = manager.is_interrupted()
+        was_interrupted = manager.consume_interruption()
         t_llm = time.time()
         reply_text = await llm_service.generate_response(
             user_text, 

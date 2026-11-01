@@ -27,7 +27,7 @@ class DuplexVaniConsole {
     this.rtt = 0;
     this.speechRec = null;
     this.speechPermissionDenied = false;
-    this.selectedLanguage = "hi-IN";
+    this.selectedLanguage = "en-IN"; // Default to English as requested
     this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
     this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
     this.isNoiseActive = false;       // Default: Clean ambience (Off)
@@ -245,6 +245,10 @@ class DuplexVaniConsole {
       this.statusBanner.classList.add("listening");
       this.stateText.innerText = "STREAMING (LISTENING)";
       this.interruptBtn.disabled = true;
+    } else if (state === "PROCESSING") {
+      this.statusBanner.classList.add("processing");
+      this.stateText.innerText = "REASONING (PROCESSING)";
+      this.interruptBtn.disabled = false; // Allow preempting in-flight thinking
     } else if (state === "SPEAKING") {
       this.statusBanner.classList.add("speaking");
       this.stateText.innerText = "DEVANSH SPEAKING";
@@ -444,6 +448,9 @@ class DuplexVaniConsole {
     }
 
     this.activePlaybackId = null;
+    this.recognizedTranscript = "";
+    this.setState("INTERRUPTED");
+    this.subtitleText.innerText = "Interrupted! Listening to your voice...";
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
@@ -1132,16 +1139,29 @@ class DuplexVaniConsole {
     this.recordSessionBtn.addEventListener("click", () => this.toggleSessionRecording());
     
     this.interruptBtn.addEventListener("click", () => {
-      if (this.currentState === "SPEAKING") {
+      if (this.currentState === "SPEAKING" || this.currentState === "PROCESSING") {
         this.triggerBargeIn();
       }
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.code === "Space" && e.target.tagName !== "INPUT" && this.currentState === "SPEAKING") {
-        e.preventDefault();
-        this.triggerBargeIn();
+      if (e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+        if (this.currentState === "SPEAKING" || this.currentState === "PROCESSING") {
+          e.preventDefault();
+          this.triggerBargeIn();
+        }
       }
+    });
+
+    // Language Selector Pills Listener
+    const pills = document.querySelectorAll(".lang-pill");
+    pills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        pills.forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        const lang = pill.getAttribute("data-lang");
+        this.updateLanguagePrompts(lang);
+      });
     });
 
     this.langSelect.addEventListener("change", (e) => {

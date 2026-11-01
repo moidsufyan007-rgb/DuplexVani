@@ -70,6 +70,12 @@ class ConversationManager:
         """Checks if an interruption signal was triggered."""
         return self.interrupt_event.is_set()
 
+    def consume_interruption(self) -> bool:
+        """Checks and immediately clears the interruption state so it does not persist into future turns."""
+        interrupted = self.interrupt_event.is_set()
+        self.interrupt_event.clear()
+        return interrupted
+
     def add_user_message(self, text: str) -> None:
         self.history.append({"role": "user", "text": text})
 
