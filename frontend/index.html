@@ -36,7 +36,13 @@
         <!-- Telephony Codec Simulator Toggle -->
         <button id="telephonyToggleBtn" class="pill-btn pill-neutral" title="Toggle 8kHz GSM Telephonic Codec Simulation">
           <span class="pill-indicator"></span>
-          <span class="pill-label">8kHz GSM Telephony: <strong id="telephonyStatusText">OFF</strong></span>
+          <span class="pill-label">8kHz GSM: <strong id="telephonyStatusText">OFF</strong></span>
+        </button>
+
+        <!-- Indian Market / Traffic Noise Simulator Toggle -->
+        <button id="noiseToggleBtn" class="pill-btn pill-neutral" title="Simulate Indian Market & Traffic Background Noise">
+          <span class="pill-indicator"></span>
+          <span class="pill-label">Market Noise: <strong id="noiseStatusText">OFF</strong></span>
         </button>
 
         <!-- Credit Shield / Live Toggle -->
@@ -77,6 +83,7 @@
           </div>
           <div class="channel-meta">
             <span class="meta-tag" id="codecBadge">CODEC: 48kHz HD</span>
+            <span class="meta-tag" id="noiseBadge">AMBIENCE: CLEAN</span>
             <span class="meta-tag">VOICE: DEVANSH (MALE)</span>
           </div>
         </div>

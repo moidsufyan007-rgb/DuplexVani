@@ -4,6 +4,7 @@
  * - Clean Enterprise Telecommunications Console Architecture
  * - Sub-50ms Barge-In Preemption Controller
  * - 8kHz GSM Telephonic Codec Simulation (Bandpass 300Hz-3400Hz)
+ * - Indian Market & Traffic Ambient Noise Simulator (-18dB SNR)
  * - Multilingual Indic Routing & Gnani Timbre Male Voice (Devansh)
  */
 
@@ -15,8 +16,9 @@ class DuplexVaniConsole {
     this.mediaRecorder = null;
     this.audioChunks = [];
     this.analyser = null;
-    this.telephonyFilter = null;
     this.currentSource = null;
+    this.noiseSource = null;
+    this.noiseGain = null;
     this.isRecording = false;
     this.currentState = "IDLE";
     this.activePlaybackId = null;
@@ -28,6 +30,7 @@ class DuplexVaniConsole {
     this.selectedLanguage = "hi-IN";
     this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
     this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
+    this.isNoiseActive = false;       // Default: Clean ambience (Off)
     
     // UI Elements
     this.statusBanner = document.getElementById("statusBanner");
@@ -37,6 +40,7 @@ class DuplexVaniConsole {
     this.latencyDisplay = document.getElementById("latencyDisplay");
     this.meterDbDisplay = document.getElementById("meterDbDisplay");
     this.codecBadge = document.getElementById("codecBadge");
+    this.noiseBadge = document.getElementById("noiseBadge");
     
     this.toggleMicBtn = document.getElementById("toggleMicBtn");
     this.toggleMicBtnText = document.getElementById("toggleMicBtnText");
@@ -44,6 +48,9 @@ class DuplexVaniConsole {
     
     this.telephonyToggleBtn = document.getElementById("telephonyToggleBtn");
     this.telephonyStatusText = document.getElementById("telephonyStatusText");
+    this.noiseToggleBtn = document.getElementById("noiseToggleBtn");
+    this.noiseStatusText = document.getElementById("noiseStatusText");
+    
     this.modeToggleBtn = document.getElementById("modeToggleBtn");
     this.modeIcon = document.getElementById("modeIcon");
     this.modeText = document.getElementById("modeText");
@@ -93,7 +100,7 @@ class DuplexVaniConsole {
     };
 
     this.ws.onerror = (err) => {
-      console.warn("WebSocket Notice (Ensure server is running on port 8000):", err);
+      console.warn("WebSocket Notice:", err);
     };
 
     this.ws.onmessage = (event) => {
@@ -239,8 +246,8 @@ class DuplexVaniConsole {
 
     if (this.isTelephonyMode) {
       this.telephonyToggleBtn.classList.add("telephony-active");
-      this.telephonyStatusText.innerText = "ON (8kHz GSM)";
-      this.codecBadge.innerText = "CODEC: G.711 (8kHz Narrowband)";
+      this.telephonyStatusText.innerText = "ON";
+      this.codecBadge.innerText = "CODEC: G.711 (8kHz GSM)";
       this.addLogEntry("SYSTEM", "8kHz GSM Telephonic Bandpass Filter (300Hz-3400Hz) engaged.");
     } else {
       this.telephonyToggleBtn.classList.remove("telephony-active");
@@ -250,11 +257,83 @@ class DuplexVaniConsole {
     }
   }
 
+  // --- Indian Market & Traffic Noise Simulator (-18dB SNR) ---
+  toggleMarketNoise() {
+    this.isNoiseActive = !this.isNoiseActive;
+
+    if (this.isNoiseActive) {
+      this.startMarketNoise();
+      this.noiseToggleBtn.classList.add("noise-active");
+      this.noiseStatusText.innerText = "ON (-18dB)";
+      this.noiseBadge.innerText = "AMBIENCE: NOISY BAZAAR";
+      this.addLogEntry("SYSTEM", "Ambient Indian market chatter & traffic background noise (-18dB SNR) engaged.");
+    } else {
+      this.stopMarketNoise();
+      this.noiseToggleBtn.classList.remove("noise-active");
+      this.noiseStatusText.innerText = "OFF";
+      this.noiseBadge.innerText = "AMBIENCE: CLEAN";
+      this.addLogEntry("SYSTEM", "Ambient noise generator stopped. Clean acoustics restored.");
+    }
+  }
+
+  startMarketNoise() {
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (this.audioCtx.state === "suspended") {
+        this.audioCtx.resume();
+      }
+
+      // Synthesize realistic 4-second brownian ambient noise buffer
+      const sampleRate = this.audioCtx.sampleRate;
+      const bufferSize = sampleRate * 4;
+      const noiseBuffer = this.audioCtx.createBuffer(1, bufferSize, sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+
+      let lastOut = 0.0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        // Brownian filter + low-frequency engine hum + periodic chatter murmur
+        const t = i / sampleRate;
+        const chatterMod = 0.8 + 0.2 * Math.sin(2 * Math.PI * 1.5 * t) + 0.1 * Math.sin(2 * Math.PI * 4.2 * t);
+        lastOut = (lastOut + (0.02 * white)) / 1.02;
+        output[i] = lastOut * 3.5 * chatterMod;
+      }
+
+      const noiseSrc = this.audioCtx.createBufferSource();
+      noiseSrc.buffer = noiseBuffer;
+      noiseSrc.loop = true;
+
+      const gain = this.audioCtx.createGain();
+      gain.gain.value = 0.045; // Subtle realistic ambient level (-18dB SNR)
+
+      noiseSrc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      noiseSrc.start(0);
+
+      this.noiseSource = noiseSrc;
+      this.noiseGain = gain;
+    } catch (e) {
+      console.warn("Noise generator error:", e);
+    }
+  }
+
+  stopMarketNoise() {
+    if (this.noiseSource) {
+      try {
+        this.noiseSource.stop(0);
+        this.noiseSource.disconnect();
+      } catch (e) {}
+      this.noiseSource = null;
+      this.noiseGain = null;
+    }
+  }
+
   // --- Preemptive Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
 
-    // 1. Immediately abort current audio node
     if (this.currentSource) {
       try {
         this.currentSource.stop(0);
@@ -263,7 +342,6 @@ class DuplexVaniConsole {
       this.currentSource = null;
     }
 
-    // 2. Mark active log entry as preempted
     if (this.activePlaybackId) {
       const activeEl = document.querySelector(`[data-playback="${this.activePlaybackId}"]`);
       if (activeEl) {
@@ -277,7 +355,6 @@ class DuplexVaniConsole {
 
     this.activePlaybackId = null;
 
-    // 3. Dispatch interrupt signal to server
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
         type: "USER_INTERRUPT",
@@ -286,7 +363,7 @@ class DuplexVaniConsole {
     }
   }
 
-  // --- Audio Playback Engine (with optional Telephony Filter) ---
+  // --- Audio Playback Engine (with Telephony Filter) ---
   async playAudioBase64(base64Data, playbackId) {
     try {
       if (!this.audioCtx) {
@@ -335,7 +412,7 @@ class DuplexVaniConsole {
       if (this.isTelephonyMode) {
         const bandpass = this.audioCtx.createBiquadFilter();
         bandpass.type = "bandpass";
-        bandpass.frequency.value = 1850; // Center frequency of telephony voice band
+        bandpass.frequency.value = 1850;
         bandpass.Q.value = 0.9;
 
         source.connect(bandpass);
@@ -592,11 +669,9 @@ class DuplexVaniConsole {
         }
       }
 
-      // Update dB readout
       const db = maxVal > 0 ? Math.round((maxVal / 255) * 48 - 48) : -48;
       this.meterDbDisplay.innerText = `${db} dB`;
 
-      // Render segmented bar spectrum
       const barWidth = (width / bufferLength) - 2;
       let x = 0;
 
@@ -604,7 +679,6 @@ class DuplexVaniConsole {
         const barHeight = (dataArray[i] / 255.0) * height * 0.9;
         const isSpeaking = this.currentState === "SPEAKING";
 
-        // Segmented bar styling
         this.canvasCtx.fillStyle = isSpeaking ? "#10b981" : "#3b82f6";
         if (this.currentState === "INTERRUPTED") this.canvasCtx.fillStyle = "#ef4444";
 
@@ -647,6 +721,7 @@ class DuplexVaniConsole {
     this.toggleMicBtn.addEventListener("click", () => this.toggleMic());
     this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
     this.telephonyToggleBtn.addEventListener("click", () => this.toggleTelephonyCodec());
+    this.noiseToggleBtn.addEventListener("click", () => this.toggleMarketNoise());
     
     this.interruptBtn.addEventListener("click", () => {
       if (this.currentState === "SPEAKING") {

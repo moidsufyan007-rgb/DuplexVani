@@ -148,6 +148,17 @@ body.enterprise-theme {
   box-shadow: 0 0 8px var(--color-amber);
 }
 
+/* Noise Pill State */
+.pill-btn.noise-active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+.pill-btn.noise-active .pill-indicator {
+  background: var(--color-red);
+  box-shadow: 0 0 8px var(--color-red);
+}
+
 /* Shield Pill State */
 .pill-shield {
   background: rgba(16, 185, 129, 0.12);
