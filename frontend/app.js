@@ -608,13 +608,28 @@ class DuplexVaniConsole {
       try { this.speechRec.stop(); } catch(e){}
     }
 
+    const spokenText = (this.recognizedTranscript || "").trim();
+    this.recognizedTranscript = "";
+
     this.isRecording = false;
     this.toggleMicBtn.classList.remove("recording");
     this.toggleMicBtnText.innerText = "Connect Voice Stream";
     this.setState("PROCESSING");
-    this.subtitleText.innerText = "Transcribing & evaluating stream...";
+    this.subtitleText.innerText = spokenText ? `Processing: "${spokenText}"...` : "Evaluating voice stream...";
 
-    if (capturedBlob && capturedBlob.size > 500) {
+    if (spokenText) {
+      // If browser speech recognition captured the user's spoken words, send immediately
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+          type: "USER_SPEECH_FINAL",
+          text: spokenText,
+          language: this.selectedLanguage,
+          is_live: this.isLiveMode
+        }));
+        this.turnCount++;
+        this.turnCountEl.innerText = this.turnCount;
+      }
+    } else if (capturedBlob && capturedBlob.size > 500) {
       const reader = new FileReader();
       reader.readAsDataURL(capturedBlob);
       reader.onloadend = () => {
@@ -645,12 +660,25 @@ class DuplexVaniConsole {
       try { this.speechRec.stop(); } catch(e){}
     }
 
+    this.recognizedTranscript = "";
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = this.selectedLanguage;
 
     rec.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          this.recognizedTranscript += event.results[i][0].transcript + " ";
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      const heard = (this.recognizedTranscript + interim).trim();
+      if (heard) {
+        this.subtitleText.innerText = `Heard: "${heard}"`;
+      }
       if (this.currentState === "SPEAKING") {
         this.triggerBargeIn();
       }
@@ -1134,6 +1162,13 @@ class DuplexVaniConsole {
 
     this.tabTranscriptBtn.addEventListener("click", () => this.switchTab("transcript"));
     this.tabVaultBtn.addEventListener("click", () => this.switchTab("vault"));
+
+    // Ensure AudioContext is unlocked on any user gesture
+    document.addEventListener("click", () => {
+      if (this.audioCtx && this.audioCtx.state === "suspended") {
+        this.audioCtx.resume();
+      }
+    });
   }
 }
 

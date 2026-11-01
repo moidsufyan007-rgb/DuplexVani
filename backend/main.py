@@ -197,7 +197,7 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
 
             # 3. USER SPEECH FINISHED
             elif msg_type == "USER_SPEECH_FINAL":
-                user_text = data.get("text", "")
+                user_text = data.get("text", "") or data.get("user_text", "")
                 audio_b64 = data.get("audio_b64")
                 language = data.get("language", settings.DEFAULT_LANGUAGE)
                 turn_live = data.get("is_live", session_live_mode)
