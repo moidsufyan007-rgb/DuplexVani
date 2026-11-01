@@ -81,7 +81,13 @@ async def process_speech_turn(
             "stt_ms": stt_latency_ms
         })
 
-        # 2. Generate response via Multilingual LLM Brain
+        # 2. Determine effective Indic language (Zero-Click Code-Switching)
+        effective_language = language
+        if language == "auto" or language.startswith("auto"):
+            effective_language = llm_service.detect_language(user_text)
+        language_label = llm_service.get_language_name(effective_language)
+
+        # 3. Generate response via Multilingual LLM Brain
         manager.set_state(VoiceState.PROCESSING)
         await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
 
@@ -91,11 +97,11 @@ async def process_speech_turn(
             user_text, 
             manager.history, 
             was_interrupted=was_interrupted,
-            language=language
+            language=effective_language
         )
         llm_latency_ms = round((time.time() - t_llm) * 1000, 1)
 
-        # 3. Notify client that assistant speech is beginning
+        # 4. Notify client that assistant speech is beginning
         playback_id = f"play_{int(time.time()*1000)}"
         manager.start_speaking(playback_id)
         await websocket.send_json({
@@ -104,27 +110,32 @@ async def process_speech_turn(
             "text": reply_text,
             "state": VoiceState.SPEAKING.value,
             "engine": "Gnani Timbre v3.0" if is_live else "Credit Shield (Local)",
-            "llm_ms": llm_latency_ms
+            "llm_ms": llm_latency_ms,
+            "detected_language": effective_language,
+            "language_name": language_label,
+            "is_auto_switched": language.startswith("auto")
         })
 
-        # 4. Synthesize voice audio via Gnani Timbre (Male Voice)
+        # 5. Synthesize voice audio via Gnani Timbre
         t_tts = time.time()
         audio_bytes = await gnani_client.synthesize_speech(
             reply_text, 
-            language=language, 
+            language=effective_language, 
             voice=gnani_client.default_male_voice,
             is_live=is_live
         )
         tts_latency_ms = round((time.time() - t_tts) * 1000, 1)
         total_turn_ms = round((time.time() - turn_start_time) * 1000, 1)
 
-        # 5. Deliver audio payload with latency breakdown
+        # 6. Deliver audio payload with latency breakdown
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
         await websocket.send_json({
             "type": "AUDIO_PAYLOAD",
             "playback_id": playback_id,
             "audio_base64": audio_base64,
             "format": "audio/wav",
+            "detected_language": effective_language,
+            "language_name": language_label,
             "telemetry": {
                 "stt_ms": stt_latency_ms,
                 "llm_ms": llm_latency_ms,

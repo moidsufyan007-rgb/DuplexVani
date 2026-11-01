@@ -27,7 +27,7 @@ class DuplexVaniConsole {
     this.rtt = 0;
     this.speechRec = null;
     this.speechPermissionDenied = false;
-    this.selectedLanguage = "en-IN"; // Default to English as requested
+    this.selectedLanguage = "auto"; // Default: Zero-Click Indic Code-Switching
     this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
     this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
     this.isNoiseActive = false;       // Default: Clean ambience (Off)
@@ -59,6 +59,7 @@ class DuplexVaniConsole {
     this.acousticPreset = "hd"; // 'hd', 'gsm', 'bazaar', 'railway'
     this.bandwidthBadge = document.getElementById("bandwidthBadge");
     this.mosBadge = document.getElementById("mosBadge");
+    this.activeLangBadge = document.getElementById("activeLangBadge");
     this.humSourceNode1 = null;
     this.humSourceNode2 = null;
     this.humGainNode = null;
@@ -220,6 +221,16 @@ class DuplexVaniConsole {
         this.subtitleText.innerText = `Synthesizing (Devansh): "${msg.text}"`;
         this.addLogEntry("DEVANSH", `${msg.text}${ttsEngine}`, msg.playback_id);
         this.interruptBtn.disabled = false;
+
+        // Auto-detected Indic Code-Switching feedback
+        if (msg.detected_language && this.activeLangBadge) {
+          const langName = msg.language_name || msg.detected_language;
+          this.activeLangBadge.innerText = `LANG: ${langName.toUpperCase()}`;
+          if (msg.is_auto_switched) {
+            this.addLogEntry("SYSTEM", `⚡ [CODE-SWITCH] Input detected as ${langName} (${msg.detected_language}). Seamlessly switched assistant language.`);
+          }
+        }
+
         if (msg.llm_ms) {
           this.valLlm.innerText = `${msg.llm_ms} ms`;
           const pctLlm = Math.min(100, Math.max(8, (msg.llm_ms / 600) * 100));
@@ -837,7 +848,8 @@ class DuplexVaniConsole {
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = this.selectedLanguage;
+    // In auto mode, en-IN captures both English and Romanized Hinglish accurately
+    rec.lang = (this.selectedLanguage === "auto") ? "en-IN" : this.selectedLanguage;
 
     rec.onresult = (event) => {
       // Automatic Barge-in: if assistant is speaking and user speaks, cut off immediately!
@@ -925,11 +937,34 @@ class DuplexVaniConsole {
   updateLanguagePrompts(lang) {
     this.selectedLanguage = lang;
     if (this.speechRec) {
-      this.speechRec.lang = lang;
+      this.speechRec.lang = (lang === "auto") ? "en-IN" : lang;
+    }
+
+    if (this.activeLangBadge) {
+      if (lang === "auto") {
+        this.activeLangBadge.innerText = "LANG: AUTO-DETECT INDIC";
+      } else {
+        const langNames = {
+          "en-IN": "INDIAN ENGLISH",
+          "hi-IN": "HINDI / HINGLISH",
+          "te-IN": "TELUGU",
+          "ta-IN": "TAMIL"
+        };
+        this.activeLangBadge.innerText = `LANG: ${langNames[lang] || lang.toUpperCase()}`;
+      }
     }
 
     let prompts = [];
-    if (lang === "te-IN") {
+    if (lang === "auto") {
+      prompts = [
+        { label: '⚡ 🇬🇧 "Capital of India?"', text: "What is the capital of India?" },
+        { label: '⚡ 🇮🇳 "Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
+        { label: '⚡ 🇮🇳 "Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
+        { label: '⚡ 🇮🇳 "Vanakkam, yaar?"', text: "Vanakkam, neengal yaar matrum eppadi velai seigireergal?" },
+        { label: '🛑 "Wait, listen first!"', text: "Wait, hold on, listen to me first!", barge: true },
+        { label: '🛑 "Arre ruko, meri baat suno!"', text: "Arre ruko, pehle meri baat suno!", barge: true }
+      ];
+    } else if (lang === "te-IN") {
       prompts = [
         { label: '"Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
         { label: '"Mandi Bhavam"', text: "Indore Mandi lo eeroju godhumalu mariyu ullipayala dharalu ela unnaayi?" },

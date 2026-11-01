@@ -23,6 +23,66 @@ class LLMService:
             "gemini-3.7-flash"
         ]
 
+    def detect_language(self, text: str) -> str:
+        """
+        Sub-millisecond Indic Code-Switching detector.
+        Identifies Devanagari, Telugu, Tamil, Kannada scripts,
+        or classifies Romanized Hinglish vs Indian English.
+        """
+        if not text or not text.strip():
+            return "en-IN"
+
+        # 1. Unicode Script Range Check
+        for char in text:
+            cp = ord(char)
+            if 0x0900 <= cp <= 0x097F:
+                return "hi-IN"
+            if 0x0C00 <= cp <= 0x0C7F:
+                return "te-IN"
+            if 0x0B80 <= cp <= 0x0BFF:
+                return "ta-IN"
+            if 0x0C80 <= cp <= 0x0CFF:
+                return "kn-IN"
+
+        # 2. Romanized Indic Vocabulary Check
+        words = set(text.lower().replace("?", " ").replace(".", " ").replace(",", " ").replace("!", " ").split())
+        
+        hi_indicators = {
+            "kya", "hai", "hain", "bhav", "batao", "namaste", "kaun", "ho", "ruko", "meri", "baat", 
+            "suno", "doodh", "khata", "gehun", "chahiye", "kaise", "kahan", "nahi", "theek", 
+            "bolo", "aap", "mera", "tum", "kisan", "mandi", "pyaz", "arrey", "arre", "hisaab",
+            "shukriya", "dhanyawad", "samajh", "bhai", "paaltu", "janwar", "rajdhani"
+        }
+        te_indicators = {
+            "meeru", "evaru", "namaskaram", "ela", "unnaru", "cheppandi", "eeroju", "dharalu", 
+            "godhumalu", "aagandi", "naaku", "pani", "bharatadesha", "rajadhani", "sahayam"
+        }
+        ta_indicators = {
+            "vanakkam", "neengal", "yaar", "sollunga", "eppadi", "irukkeenga", "sandhai", 
+            "nillungal", "pesugiren", "velai", "thalainagaram", "uthavalaam"
+        }
+
+        if any(w in words for w in hi_indicators):
+            return "hi-IN"
+        if any(w in words for w in te_indicators):
+            return "te-IN"
+        if any(w in words for w in ta_indicators):
+            return "ta-IN"
+
+        return "en-IN"
+
+    def get_language_name(self, lang_code: str) -> str:
+        lang = lang_code.split("-")[0].lower()
+        mapping = {
+            "en": "Indian English",
+            "hi": "Hindi / Hinglish",
+            "te": "Telugu (తెలుగు)",
+            "ta": "Tamil (தமிழ்)",
+            "kn": "Kannada (ಕನ್ನಡ)",
+            "mr": "Marathi (मराठी)"
+        }
+        return mapping.get(lang, "Indic Multilingual")
+
     async def generate_response(
         self, 
         user_text: str, 
@@ -32,17 +92,23 @@ class LLMService:
     ) -> str:
         history = history or []
         
+        # Handle zero-click automatic Indic code-switching
+        effective_language = language
+        if language == "auto" or language.startswith("auto"):
+            effective_language = self.detect_language(user_text)
+            logger.info(f"Auto-detected language for '{user_text[:30]}...': {effective_language}")
+
         # Try dynamic Gemini LLM cascade if API key is provided
         if self.api_key:
             try:
-                response = await self._call_gemini_cascade(user_text, history, was_interrupted, language)
+                response = await self._call_gemini_cascade(user_text, history, was_interrupted, effective_language)
                 if response:
                     return response
             except Exception as e:
                 logger.warning(f"All Gemini models in cascade failed: {e}. Using intelligent fallback.")
 
         # Fallback to local intelligent response engine
-        return self._rule_based_fallback(user_text, was_interrupted, language)
+        return self._rule_based_fallback(user_text, was_interrupted, effective_language)
 
     async def _call_gemini_cascade(
         self, 
