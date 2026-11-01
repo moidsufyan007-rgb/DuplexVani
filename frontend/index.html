@@ -290,7 +290,12 @@
                 <span class="vault-count-badge" id="vaultCount">0</span>
               </button>
             </div>
-            <button id="clearFeedBtn" class="log-btn-action">Clear</button>
+            <div class="toolbar-actions">
+              <button id="exportSessionAuditBtn" class="log-btn-action log-btn-audit" title="Export complete Gnani AI telemetry audit report">
+                📋 Export Audit
+              </button>
+              <button id="clearFeedBtn" class="log-btn-action">Clear</button>
+            </div>
           </div>
 
           <!-- Tab 1: Live Call Transcript -->
@@ -330,6 +335,32 @@
         <span>Barge-In: Sub-50ms Preemption</span>
       </div>
     </footer>
+  </div>
+
+  <!-- Enterprise Call Audit & Telemetry Inspection Modal -->
+  <div class="modal-backdrop" id="auditModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-kicker">GNANI AI CHALLENGE TELEMETRY AUDIT</span>
+          <h3 id="auditModalTitle">Enterprise Call Telemetry & Audit Report</h3>
+        </div>
+        <button class="modal-close-btn" id="closeAuditModalBtn">✕</button>
+      </div>
+
+      <div class="modal-body" id="auditModalContent">
+        <!-- Rendered dynamically via JavaScript -->
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-console btn-modal-action btn-copy-md" id="btnCopyAuditMd">
+          📋 Copy Markdown for LinkedIn
+        </button>
+        <button class="btn-console btn-modal-action btn-dl-json" id="btnDownloadAuditJson">
+          ⬇ Download JSON Audit
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
