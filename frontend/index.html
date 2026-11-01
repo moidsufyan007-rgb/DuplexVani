@@ -3,163 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DuplexVani — Full-Duplex Indic Voice AI with Interruption Handling</title>
+  <title>DuplexVani — Enterprise Voice Desk</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
-<body>
-  <div class="app-container">
-    <!-- Navbar / Header -->
-    <header class="navbar">
-      <div class="brand">
-        <div class="brand-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="22"/>
+<body class="enterprise-theme">
+  <div class="desk-container">
+    <!-- Top App Bar -->
+    <header class="top-bar">
+      <div class="brand-cluster">
+        <div class="console-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M7 9v6"/>
+            <path d="M12 7v10"/>
+            <path d="M17 11v2"/>
           </svg>
         </div>
-        <div class="brand-meta">
-          <h1>DuplexVani <span class="badge-sub">Full-Duplex</span></h1>
-          <p>Powered by Gnani AI • Prisma STT & Timbre TTS (Devansh)</p>
+        <div class="brand-titles">
+          <div class="brand-row">
+            <h1>DuplexVani</h1>
+            <span class="version-tag">ENTERPRISE CONSOLE v1.2</span>
+          </div>
+          <p class="brand-sub">Real-Time Full-Duplex Indic Voice Infrastructure • Powered by Gnani AI</p>
         </div>
       </div>
 
-      <div class="header-status">
-        <!-- Credit Shield / Live Gnani Mode Switch -->
-        <div class="mode-box">
-          <button id="modeToggleBtn" class="mode-pill mode-shield" title="Click to toggle between Free Credit Shield and Live Gnani AI">
-            <span class="mode-icon" id="modeIcon">🛡️</span>
-            <span id="modeText">Credit Shield (Free)</span>
-          </button>
-        </div>
+      <!-- Controls & Status Bar -->
+      <div class="controls-cluster">
+        <!-- Telephony Codec Simulator Toggle -->
+        <button id="telephonyToggleBtn" class="pill-btn pill-neutral" title="Toggle 8kHz GSM Telephonic Codec Simulation">
+          <span class="pill-indicator"></span>
+          <span class="pill-label">8kHz GSM Telephony: <strong id="telephonyStatusText">OFF</strong></span>
+        </button>
 
-        <!-- Language Switcher Dropdown -->
-        <div class="lang-box">
-          <label for="langSelect" class="lang-label">Lang:</label>
-          <select id="langSelect" class="lang-dropdown">
-            <option value="hi-IN" selected>🇮🇳 Hindi / Hinglish</option>
-            <option value="en-IN">🇬🇧 Indian English</option>
-            <option value="te-IN">🇮🇳 Telugu (తెలుగు)</option>
-            <option value="ta-IN">🇮🇳 Tamil (தமிழ்)</option>
-            <option value="kn-IN">🇮🇳 Kannada (ಕನ್ನಡ)</option>
-            <option value="mr-IN">🇮🇳 Marathi (मराठी)</option>
+        <!-- Credit Shield / Live Toggle -->
+        <button id="modeToggleBtn" class="pill-btn pill-shield" title="Toggle Credit Shield / Live Gnani Mode">
+          <span id="modeIcon">🛡️</span>
+          <span id="modeText">Credit Shield (Free)</span>
+        </button>
+
+        <!-- Language Selector -->
+        <div class="select-wrapper">
+          <label for="langSelect" class="sr-only">Language</label>
+          <select id="langSelect" class="console-select">
+            <option value="hi-IN" selected>Hindi / Hinglish</option>
+            <option value="en-IN">Indian English</option>
+            <option value="te-IN">Telugu (తెలుగు)</option>
+            <option value="ta-IN">Tamil (தமிழ்)</option>
+            <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
+            <option value="mr-IN">Marathi (मराठी)</option>
           </select>
         </div>
 
-        <div class="connection-pill" id="connPill">
-          <span class="dot"></span>
-          <span id="connStatusText">Connecting...</span>
+        <!-- Connection State -->
+        <div class="connection-badge" id="connBadge">
+          <span class="badge-dot"></span>
+          <span id="connStatusText">ONLINE</span>
         </div>
       </div>
     </header>
 
-    <!-- Main Grid -->
-    <main class="main-grid">
-      <!-- Left Panel: Voice Stage & Visualizer -->
-      <section class="card voice-stage">
-        <div class="stage-header">
-          <div class="state-indicator" id="stateBadge">
-            <span class="pulse-ring"></span>
-            <span class="state-text" id="stateText">IDLE</span>
+    <!-- Main Console Grid -->
+    <main class="console-layout">
+      <!-- Left Column: Audio Operations Channel -->
+      <section class="console-card channel-card">
+        <div class="card-head">
+          <div class="channel-info">
+            <span class="label-kicker">CHANNEL 01</span>
+            <h2>Active Audio Stream</h2>
           </div>
-          <div class="latency-chip">
-            <span class="label">Barge-in Latency:</span>
-            <strong id="latencyDisplay">-- ms</strong>
-          </div>
-        </div>
-
-        <!-- Central Wave Visualizer -->
-        <div class="visualizer-wrapper">
-          <canvas id="visualizerCanvas" width="600" height="200"></canvas>
-          <div class="orb-container" id="visualOrb">
-            <div class="inner-glow"></div>
+          <div class="channel-meta">
+            <span class="meta-tag" id="codecBadge">CODEC: 48kHz HD</span>
+            <span class="meta-tag">VOICE: DEVANSH (MALE)</span>
           </div>
         </div>
 
-        <div class="live-subtitle" id="subtitleBox">
-          <p class="subtitle-text" id="subtitleText">Click "Start Duplex Voice" and speak into your mic or click a prompt chip...</p>
+        <!-- Real-Time State Banner -->
+        <div class="status-banner" id="statusBanner">
+          <div class="status-pulse-dot" id="statusDot"></div>
+          <div class="status-details">
+            <span class="status-main" id="stateText">READY (IDLE)</span>
+            <span class="status-desc" id="subtitleText">Microphone initialized. Click 'Connect Voice' to begin stream.</span>
+          </div>
+          <div class="bargein-display">
+            <span class="bargein-label">BARGE-IN LATENCY</span>
+            <span class="bargein-value" id="latencyDisplay">-- ms</span>
+          </div>
         </div>
 
-        <!-- Primary Action Controls -->
-        <div class="stage-controls">
-          <button id="toggleMicBtn" class="btn btn-primary btn-large">
-            <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Professional Studio Spectrum Meters -->
+        <div class="meter-stage">
+          <div class="meter-readout">
+            <span>INPUT FREQUENCY (300Hz - 8kHz)</span>
+            <span id="meterDbDisplay">-42 dB</span>
+          </div>
+          <canvas id="visualizerCanvas" width="640" height="140"></canvas>
+        </div>
+
+        <!-- Primary Action Triggers -->
+        <div class="operator-controls">
+          <button id="toggleMicBtn" class="btn-console btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
               <line x1="12" y1="19" x2="12" y2="22"/>
             </svg>
-            <span id="toggleMicBtnText">Start Duplex Voice</span>
+            <span id="toggleMicBtnText">Connect Voice Stream</span>
           </button>
 
-          <!-- Instant Interruption Trigger (Barge-In) -->
-          <button id="interruptBtn" class="btn btn-danger" disabled title="Trigger instant barge-in to cut off assistant">
-            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
+          <!-- Preemptive Barge-In Interruption Button -->
+          <button id="interruptBtn" class="btn-console btn-bargein" disabled title="Interrupt assistant audio stream instantly">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
             </svg>
-            <span>Interrupt Bot (Barge-in)</span>
-            <kbd>Space</kbd>
+            <span>Interrupt (Barge-In)</span>
+            <span class="kbd-hint">SPACEBAR</span>
           </button>
         </div>
 
-        <!-- Quick Utterance Chips for Live Video Demo -->
-        <div class="demo-prompts">
-          <span class="prompt-label">Quick Demo Prompts:</span>
-          <div class="chips-row" id="chipsRow">
-            <!-- Dynamically populated based on selected language -->
+        <!-- Enterprise Bharat Scenarios -->
+        <div class="scenarios-section">
+          <div class="section-title">
+            <span>ENTERPRISE BENCHMARK SCENARIOS</span>
+            <span class="section-sub">1-Click Test Prompts</span>
+          </div>
+          <div class="scenarios-grid" id="chipsRow">
+            <!-- Dynamically populated based on active language -->
           </div>
         </div>
       </section>
 
-      <!-- Right Panel: Telemetry & Live Conversational Transcript -->
-      <section class="card telemetry-panel">
-        <div class="panel-header">
-          <h2>Live Session Telemetry</h2>
-          <span class="session-badge" id="sessionIdBadge">--</span>
+      <!-- Right Column: Performance Telemetry & Live Call Log -->
+      <section class="console-card log-card">
+        <div class="card-head">
+          <div class="channel-info">
+            <span class="label-kicker">TELEMETRY & AUDIT</span>
+            <h2>Session Diagnostics</h2>
+          </div>
+          <span class="session-id-tag" id="sessionIdBadge">SESSION #--</span>
         </div>
 
-        <!-- Stats Grid -->
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <span class="metric-title">Successful Barge-ins</span>
-            <span class="metric-value text-accent" id="interruptCount">0</span>
-            <span class="metric-sub">Zero-latency cutoffs</span>
+        <!-- Telemetry 4-Pack -->
+        <div class="diagnostics-grid">
+          <div class="diag-tile">
+            <span class="diag-label">BARGE-IN CUTOFFS</span>
+            <span class="diag-value text-accent" id="interruptCount">0</span>
+            <span class="diag-foot">Preempted tasks</span>
           </div>
-          <div class="metric-card">
-            <span class="metric-title">Conversation Turns</span>
-            <span class="metric-value" id="turnCount">0</span>
-            <span class="metric-sub">Full duplex exchanges</span>
+          <div class="diag-tile">
+            <span class="diag-label">CONVERSATION TURNS</span>
+            <span class="diag-value" id="turnCount">0</span>
+            <span class="diag-foot">Completed rounds</span>
           </div>
-          <div class="metric-card">
-            <span class="metric-title">Websocket RTT</span>
-            <span class="metric-value text-green" id="rttDisplay">-- ms</span>
-            <span class="metric-sub">Edge stream transit</span>
+          <div class="diag-tile">
+            <span class="diag-label">STREAM RTT</span>
+            <span class="diag-value text-success" id="rttDisplay">-- ms</span>
+            <span class="diag-foot">WebSocket ping</span>
+          </div>
+          <div class="diag-tile">
+            <span class="diag-label">SPEECH ENGINE</span>
+            <span class="diag-value text-muted-value">Gnani v3</span>
+            <span class="diag-foot">Prisma & Timbre</span>
           </div>
         </div>
 
-        <!-- Transcript Feed -->
-        <div class="transcript-feed">
-          <div class="feed-header">
-            <h3>Live Conversation Feed</h3>
-            <button id="clearFeedBtn" class="btn-text">Clear</button>
+        <!-- Chronological Call Event Log -->
+        <div class="log-stream-wrapper">
+          <div class="log-toolbar">
+            <span class="log-title">REAL-TIME CALL TRANSCRIPT</span>
+            <button id="clearFeedBtn" class="log-btn-action">Clear Log</button>
           </div>
-          <div class="feed-messages" id="feedMessages">
-            <div class="feed-item system-item">
-              <span class="feed-role">SYSTEM</span>
-              <p>DuplexVani audio pipeline initialized with Devansh (Male Voice). Mode: Credit Shield (Free).</p>
+          <div class="log-entries" id="feedMessages">
+            <div class="log-entry system-entry">
+              <span class="entry-time">[00:00:00]</span>
+              <span class="entry-badge">SYSTEM</span>
+              <p>DuplexVani Gateway active. Ready for streaming full-duplex session.</p>
             </div>
           </div>
         </div>
       </section>
     </main>
 
-    <!-- Footer with Challenge Attribution -->
-    <footer class="footer">
-      <p>Built for the <strong>Great Indian AI Internship Challenge 2026</strong> • Powered by <strong>Gnani AI</strong> Indic Speech Technologies</p>
+    <!-- Bottom Compliance & Contest Footer -->
+    <footer class="console-footer">
+      <div class="footer-left">
+        <span>Great Indian AI Internship Challenge 2026</span>
+        <span class="footer-divider">•</span>
+        <span>Built by Mohd Abdul Moid Sufiyan</span>
+      </div>
+      <div class="footer-right">
+        <span>STT: Gnani Prisma v3.0</span>
+        <span class="footer-divider">•</span>
+        <span>TTS: Gnani Timbre v3.0 (Devansh)</span>
+        <span class="footer-divider">•</span>
+        <span>Barge-In: Sub-50ms Preemption</span>
+      </div>
     </footer>
   </div>
 

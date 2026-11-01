@@ -1,12 +1,13 @@
 /**
- * DuplexVani — Client Audio Engine & Full-Duplex Interruption Handler
- * Supports:
- * - Credit Shield (Free Simulation) vs. Live Gnani AI Mode Switch
- * - Direct Microphone Audio Streaming to Gnani Prisma STT
- * - Multilingual Indic Voice & Male Timbre (Devansh)
+ * DuplexVani — Enterprise Voice Desk Operator Client
+ * Features:
+ * - Clean Enterprise Telecommunications Console Architecture
+ * - Sub-50ms Barge-In Preemption Controller
+ * - 8kHz GSM Telephonic Codec Simulation (Bandpass 300Hz-3400Hz)
+ * - Multilingual Indic Routing & Gnani Timbre Male Voice (Devansh)
  */
 
-class DuplexVaniClient {
+class DuplexVaniConsole {
   constructor() {
     this.ws = null;
     this.audioCtx = null;
@@ -14,6 +15,7 @@ class DuplexVaniClient {
     this.mediaRecorder = null;
     this.audioChunks = [];
     this.analyser = null;
+    this.telephonyFilter = null;
     this.currentSource = null;
     this.isRecording = false;
     this.currentState = "IDLE";
@@ -24,36 +26,45 @@ class DuplexVaniClient {
     this.speechRec = null;
     this.speechPermissionDenied = false;
     this.selectedLanguage = "hi-IN";
-    this.isLiveMode = false; // Default: Credit Shield (Free Mode)
+    this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
+    this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
     
     // UI Elements
-    this.stateBadge = document.getElementById("stateBadge");
+    this.statusBanner = document.getElementById("statusBanner");
+    this.statusDot = document.getElementById("statusDot");
     this.stateText = document.getElementById("stateText");
-    this.latencyDisplay = document.getElementById("latencyDisplay");
-    this.visualOrb = document.getElementById("visualOrb");
     this.subtitleText = document.getElementById("subtitleText");
+    this.latencyDisplay = document.getElementById("latencyDisplay");
+    this.meterDbDisplay = document.getElementById("meterDbDisplay");
+    this.codecBadge = document.getElementById("codecBadge");
+    
     this.toggleMicBtn = document.getElementById("toggleMicBtn");
     this.toggleMicBtnText = document.getElementById("toggleMicBtnText");
     this.interruptBtn = document.getElementById("interruptBtn");
-    this.connPill = document.getElementById("connPill");
+    
+    this.telephonyToggleBtn = document.getElementById("telephonyToggleBtn");
+    this.telephonyStatusText = document.getElementById("telephonyStatusText");
+    this.modeToggleBtn = document.getElementById("modeToggleBtn");
+    this.modeIcon = document.getElementById("modeIcon");
+    this.modeText = document.getElementById("modeText");
+    this.langSelect = document.getElementById("langSelect");
+    this.connBadge = document.getElementById("connBadge");
     this.connStatusText = document.getElementById("connStatusText");
     this.sessionIdBadge = document.getElementById("sessionIdBadge");
+    
     this.interruptCountEl = document.getElementById("interruptCount");
     this.turnCountEl = document.getElementById("turnCount");
     this.rttDisplay = document.getElementById("rttDisplay");
     this.feedMessages = document.getElementById("feedMessages");
     this.clearFeedBtn = document.getElementById("clearFeedBtn");
-    this.langSelect = document.getElementById("langSelect");
     this.chipsRow = document.getElementById("chipsRow");
-    this.modeToggleBtn = document.getElementById("modeToggleBtn");
-    this.modeIcon = document.getElementById("modeIcon");
-    this.modeText = document.getElementById("modeText");
+    
     this.canvas = document.getElementById("visualizerCanvas");
     this.canvasCtx = this.canvas.getContext("2d");
 
     this.initWebSocket();
     this.initEventListeners();
-    this.startCanvasAnimation();
+    this.startSpectrumMeter();
   }
 
   // --- WebSocket Connection ---
@@ -63,29 +74,26 @@ class DuplexVaniClient {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${host}/ws/duplex`;
 
-    this.connStatusText.innerText = "Connecting...";
+    this.connStatusText.innerText = "CONNECTING...";
     try {
       this.ws = new WebSocket(wsUrl);
     } catch (e) {
-      console.warn("WebSocket init error:", e);
       setTimeout(() => this.initWebSocket(), 3000);
       return;
     }
 
     this.ws.onopen = () => {
-      this.connPill.classList.add("connected");
-      this.connStatusText.innerText = "Connected (Gnani Edge)";
+      this.connStatusText.innerText = "ONLINE";
       this.startPingLoop();
     };
 
     this.ws.onclose = () => {
-      this.connPill.classList.remove("connected");
-      this.connStatusText.innerText = "Disconnected. Reconnecting...";
+      this.connStatusText.innerText = "OFFLINE";
       setTimeout(() => this.initWebSocket(), 2500);
     };
 
     this.ws.onerror = (err) => {
-      console.warn("WebSocket Error:", err);
+      console.warn("WebSocket Notice (Ensure server is running on port 8000):", err);
     };
 
     this.ws.onmessage = (event) => {
@@ -114,9 +122,9 @@ class DuplexVaniClient {
   handleServerMessage(msg) {
     switch (msg.type) {
       case "HANDSHAKE":
-        this.sessionIdBadge.innerText = msg.session_id;
+        this.sessionIdBadge.innerText = `SESSION #${msg.session_id.slice(-6)}`;
         this.setState("IDLE");
-        this.addFeedItem("system", `Session initialized. Mode: ${this.isLiveMode ? 'Live Gnani AI' : 'Credit Shield (Free)'}`);
+        this.addLogEntry("SYSTEM", `Channel linked. Mode: ${this.isLiveMode ? 'Live Gnani' : 'Credit Shield'}`);
         break;
 
       case "MODE_UPDATED":
@@ -137,7 +145,7 @@ class DuplexVaniClient {
         this.interruptionCount = msg.data.total_interruptions;
         this.interruptCountEl.innerText = this.interruptionCount;
         this.setState("INTERRUPTED");
-        this.subtitleText.innerHTML = `⚠️ <em>Interrupted! Dropped audio in ${lat}ms.</em>`;
+        this.subtitleText.innerText = `Preempted audio stream in ${lat}ms. Listening...`;
         setTimeout(() => {
           if (this.currentState === "INTERRUPTED") {
             this.setState("LISTENING");
@@ -147,16 +155,16 @@ class DuplexVaniClient {
 
       case "TRANSCRIPTION_RESULT":
         const engineLabel = msg.engine ? ` [${msg.engine}]` : "";
-        this.addFeedItem("user", `${msg.text}${engineLabel}`);
-        this.subtitleText.innerText = `You: "${msg.text}"`;
+        this.addLogEntry("USER", `${msg.text}${engineLabel}`);
+        this.subtitleText.innerText = `Recognized: "${msg.text}"`;
         break;
 
       case "ASSISTANT_REPLY_START":
         this.setState("SPEAKING");
         this.activePlaybackId = msg.playback_id;
         const ttsEngine = msg.engine ? ` (${msg.engine})` : "";
-        this.subtitleText.innerText = `Assistant (Devansh): "${msg.text}"`;
-        this.addFeedItem("assistant", `${msg.text}${ttsEngine}`, msg.playback_id);
+        this.subtitleText.innerText = `Synthesizing (Devansh): "${msg.text}"`;
+        this.addLogEntry("DEVANSH", `${msg.text}${ttsEngine}`, msg.playback_id);
         this.interruptBtn.disabled = false;
         break;
 
@@ -174,25 +182,25 @@ class DuplexVaniClient {
     }
   }
 
+  // --- State Visualization ---
   setState(state) {
     this.currentState = state;
-    this.stateText.innerText = state;
-    
-    this.stateBadge.className = "state-indicator";
-    this.visualOrb.className = "orb-container";
+    this.statusBanner.className = "status-banner";
 
     if (state === "LISTENING") {
-      this.stateBadge.classList.add("listening");
+      this.statusBanner.classList.add("listening");
+      this.stateText.innerText = "STREAMING (LISTENING)";
       this.interruptBtn.disabled = true;
     } else if (state === "SPEAKING") {
-      this.stateBadge.classList.add("speaking");
-      this.visualOrb.classList.add("speaking");
+      this.statusBanner.classList.add("speaking");
+      this.stateText.innerText = "DEVANSH SPEAKING";
       this.interruptBtn.disabled = false;
     } else if (state === "INTERRUPTED") {
-      this.stateBadge.classList.add("interrupted");
-      this.visualOrb.classList.add("interrupted");
+      this.statusBanner.classList.add("interrupted");
+      this.stateText.innerText = "BARGE-IN PREEMPTED";
       this.interruptBtn.disabled = true;
     } else {
+      this.stateText.innerText = "READY (IDLE)";
       this.interruptBtn.disabled = true;
     }
   }
@@ -209,26 +217,44 @@ class DuplexVaniClient {
       }));
     }
 
-    const modeName = this.isLiveMode ? "⚡ Live Gnani AI (Prisma & Timbre)" : "🛡️ Credit Shield (Free Mode)";
-    this.addFeedItem("system", `Switched mode to: ${modeName}`);
+    const modeLabel = this.isLiveMode ? "Live Gnani AI (Prisma & Timbre)" : "Credit Shield (Free)";
+    this.addLogEntry("SYSTEM", `Active speech mode switched: ${modeLabel}`);
   }
 
   updateModeUI() {
     if (this.isLiveMode) {
-      this.modeToggleBtn.className = "mode-pill mode-live";
+      this.modeToggleBtn.className = "pill-btn pill-shield pill-live";
       this.modeIcon.innerText = "⚡";
       this.modeText.innerText = "Live Gnani AI (Active)";
     } else {
-      this.modeToggleBtn.className = "mode-pill mode-shield";
+      this.modeToggleBtn.className = "pill-btn pill-shield";
       this.modeIcon.innerText = "🛡️";
       this.modeText.innerText = "Credit Shield (Free)";
     }
   }
 
-  // --- Instant Barge-In Engine ---
+  // --- Telephonic 8kHz GSM Codec Simulator ---
+  toggleTelephonyCodec() {
+    this.isTelephonyMode = !this.isTelephonyMode;
+
+    if (this.isTelephonyMode) {
+      this.telephonyToggleBtn.classList.add("telephony-active");
+      this.telephonyStatusText.innerText = "ON (8kHz GSM)";
+      this.codecBadge.innerText = "CODEC: G.711 (8kHz Narrowband)";
+      this.addLogEntry("SYSTEM", "8kHz GSM Telephonic Bandpass Filter (300Hz-3400Hz) engaged.");
+    } else {
+      this.telephonyToggleBtn.classList.remove("telephony-active");
+      this.telephonyStatusText.innerText = "OFF";
+      this.codecBadge.innerText = "CODEC: 48kHz HD Wideband";
+      this.addLogEntry("SYSTEM", "Wideband 48kHz studio audio restored.");
+    }
+  }
+
+  // --- Preemptive Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
 
+    // 1. Immediately abort current audio node
     if (this.currentSource) {
       try {
         this.currentSource.stop(0);
@@ -237,19 +263,21 @@ class DuplexVaniClient {
       this.currentSource = null;
     }
 
+    // 2. Mark active log entry as preempted
     if (this.activePlaybackId) {
       const activeEl = document.querySelector(`[data-playback="${this.activePlaybackId}"]`);
       if (activeEl) {
         activeEl.classList.add("cut-off");
         const p = activeEl.querySelector("p");
-        if (p && !p.innerText.includes("[Cut off]")) {
-          p.innerText += " 🛑 [Interrupted by user]";
+        if (p && !p.innerText.includes("[PREEMPTED]")) {
+          p.innerText += " 🛑 [PREEMPTED BY USER BARGE-IN]";
         }
       }
     }
 
     this.activePlaybackId = null;
 
+    // 3. Dispatch interrupt signal to server
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({
         type: "USER_INTERRUPT",
@@ -258,7 +286,7 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Audio Playback Engine (48kHz WAV + Direct PCM) ---
+  // --- Audio Playback Engine (with optional Telephony Filter) ---
   async playAudioBase64(base64Data, playbackId) {
     try {
       if (!this.audioCtx) {
@@ -303,10 +331,22 @@ class DuplexVaniClient {
       const gainNode = this.audioCtx.createGain();
       gainNode.gain.value = 1.0;
 
-      if (this.analyser) {
-        source.connect(this.analyser);
+      // Telephony GSM Simulation (Bandpass 300Hz - 3400Hz filter)
+      if (this.isTelephonyMode) {
+        const bandpass = this.audioCtx.createBiquadFilter();
+        bandpass.type = "bandpass";
+        bandpass.frequency.value = 1850; // Center frequency of telephony voice band
+        bandpass.Q.value = 0.9;
+
+        source.connect(bandpass);
+        bandpass.connect(gainNode);
+      } else {
+        source.connect(gainNode);
       }
-      source.connect(gainNode);
+
+      if (this.analyser) {
+        gainNode.connect(this.analyser);
+      }
       gainNode.connect(this.audioCtx.destination);
 
       source.onended = () => {
@@ -353,39 +393,37 @@ class DuplexVaniClient {
         });
       }
 
-      // Analyser for visual waves
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
       micSource.connect(this.analyser);
 
-      // MediaRecorder to record audio for Prisma STT
       this.audioChunks = [];
       try {
         this.mediaRecorder = new MediaRecorder(this.micStream);
         this.mediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) this.audioChunks.push(e.data);
         };
-        this.mediaRecorder.start(250); // 250ms time slice
+        this.mediaRecorder.start(250);
       } catch (mrErr) {
         console.warn("MediaRecorder init notice:", mrErr);
       }
 
       this.isRecording = true;
       this.toggleMicBtn.classList.add("recording");
-      this.toggleMicBtnText.innerText = "Send Spoken Audio";
+      this.toggleMicBtnText.innerText = "Commit Audio Stream";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Listening to mic... Speak and click 'Send' when done!";
+      this.subtitleText.innerText = "Channel recording active. Speak, then click Commit.";
 
       this.startSpeechRecognition();
 
     } catch (err) {
-      console.warn("Microphone not available, prompt mode active:", err);
+      console.warn("Microphone access notice:", err);
       this.isRecording = true;
       this.toggleMicBtn.classList.add("recording");
-      this.toggleMicBtnText.innerText = "Stop Session";
+      this.toggleMicBtnText.innerText = "Stop Channel";
       this.setState("LISTENING");
-      this.subtitleText.innerText = "Session active. Click any prompt chip below!";
+      this.subtitleText.innerText = "Channel online. Click a benchmark scenario below.";
     }
   }
 
@@ -402,11 +440,10 @@ class DuplexVaniClient {
 
     this.isRecording = false;
     this.toggleMicBtn.classList.remove("recording");
-    this.toggleMicBtnText.innerText = "Start Duplex Voice";
+    this.toggleMicBtnText.innerText = "Connect Voice Stream";
     this.setState("PROCESSING");
-    this.subtitleText.innerText = "Processing spoken audio...";
+    this.subtitleText.innerText = "Transcribing & evaluating stream...";
 
-    // If we recorded audio, convert to base64 and send to Gnani Prisma STT!
     if (capturedBlob && capturedBlob.size > 500) {
       const reader = new FileReader();
       reader.readAsDataURL(capturedBlob);
@@ -425,7 +462,7 @@ class DuplexVaniClient {
       };
     } else {
       this.setState("IDLE");
-      this.subtitleText.innerText = "Session stopped. Click Start to speak again.";
+      this.subtitleText.innerText = "Stream closed. Click 'Connect Voice' to resume.";
     }
   }
 
@@ -444,7 +481,6 @@ class DuplexVaniClient {
     rec.lang = this.selectedLanguage;
 
     rec.onresult = (event) => {
-      // Barge-in if user speaks during playback
       if (this.currentState === "SPEAKING") {
         this.triggerBargeIn();
       }
@@ -479,7 +515,7 @@ class DuplexVaniClient {
     }
   }
 
-  // --- Dynamic Language Prompts ---
+  // --- Dynamic Enterprise Scenarios ---
   updateLanguagePrompts(lang) {
     this.selectedLanguage = lang;
     if (this.speechRec) {
@@ -501,11 +537,12 @@ class DuplexVaniClient {
       ];
     } else if (lang === "en-IN") {
       prompts = [
-        { label: '"Who are you?"', text: "Hello, who are you and how do you work?" },
+        { label: '"Who are you?"', text: "Hello, who are you and how does DuplexVani work?" },
         { label: '"Market Rates"', text: "What are the wheat and onion commodity prices today?" },
         { label: '🛑 "Wait, listen to me first!"', text: "Wait, hold on, listen to me first!", barge: true }
       ];
     } else {
+      // Default Hindi / Hinglish
       prompts = [
         { label: '"Aap kaun hain?"', text: "Namaste, aap kaun hain aur aap kaise kaam karte hain?" },
         { label: '"Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
@@ -535,9 +572,9 @@ class DuplexVaniClient {
     });
   }
 
-  // --- Waveform Canvas Animation ---
-  startCanvasAnimation() {
-    const bufferLength = 64;
+  // --- Professional Linear Studio Spectrum Bars ---
+  startSpectrumMeter() {
+    const bufferLength = 48;
     const dataArray = new Uint8Array(bufferLength);
 
     const draw = () => {
@@ -547,48 +584,56 @@ class DuplexVaniClient {
       const height = this.canvas.height;
       this.canvasCtx.clearRect(0, 0, width, height);
 
+      let maxVal = 0;
       if (this.analyser) {
         this.analyser.getByteFrequencyData(dataArray);
+        for (let i = 0; i < bufferLength; i++) {
+          if (dataArray[i] > maxVal) maxVal = dataArray[i];
+        }
       }
 
-      this.canvasCtx.lineWidth = 2;
-      const gradient = this.canvasCtx.createLinearGradient(0, 0, width, 0);
-      gradient.addColorStop(0, "rgba(139, 92, 246, 0.2)");
-      gradient.addColorStop(0.5, this.currentState === "SPEAKING" ? "rgba(16, 185, 129, 0.8)" : "rgba(6, 182, 212, 0.8)");
-      gradient.addColorStop(1, "rgba(139, 92, 246, 0.2)");
-      this.canvasCtx.strokeStyle = gradient;
+      // Update dB readout
+      const db = maxVal > 0 ? Math.round((maxVal / 255) * 48 - 48) : -48;
+      this.meterDbDisplay.innerText = `${db} dB`;
 
-      this.canvasCtx.beginPath();
-      const sliceWidth = width / bufferLength;
+      // Render segmented bar spectrum
+      const barWidth = (width / bufferLength) - 2;
       let x = 0;
 
       for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * height) / 4 + height / 2;
+        const barHeight = (dataArray[i] / 255.0) * height * 0.9;
+        const isSpeaking = this.currentState === "SPEAKING";
 
-        if (i === 0) this.canvasCtx.moveTo(x, y);
-        else this.canvasCtx.lineTo(x, y);
-        x += sliceWidth;
+        // Segmented bar styling
+        this.canvasCtx.fillStyle = isSpeaking ? "#10b981" : "#3b82f6";
+        if (this.currentState === "INTERRUPTED") this.canvasCtx.fillStyle = "#ef4444";
+
+        this.canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+        x += barWidth + 2;
       }
-
-      this.canvasCtx.stroke();
     };
 
     draw();
   }
 
-  // --- UI Feed & Helpers ---
-  addFeedItem(role, text, playbackId = null) {
-    const item = document.createElement("div");
-    item.className = `feed-item ${role}-item`;
+  // --- Timestamped Call Log Helper ---
+  addLogEntry(role, text, playbackId = null) {
+    const now = new Date();
+    const timeStr = now.toTimeString().split(" ")[0];
+
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${role.toLowerCase()}-entry`;
     if (playbackId) {
-      item.setAttribute("data-playback", playbackId);
+      entry.setAttribute("data-playback", playbackId);
     }
-    item.innerHTML = `
-      <span class="feed-role">${role.toUpperCase()}</span>
+    entry.innerHTML = `
+      <div>
+        <span class="entry-time">[${timeStr}]</span>
+        <span class="entry-badge">${role}</span>
+      </div>
       <p>${text}</p>
     `;
-    this.feedMessages.appendChild(item);
+    this.feedMessages.appendChild(entry);
     this.feedMessages.scrollTop = this.feedMessages.scrollHeight;
   }
 
@@ -601,6 +646,7 @@ class DuplexVaniClient {
   initEventListeners() {
     this.toggleMicBtn.addEventListener("click", () => this.toggleMic());
     this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
+    this.telephonyToggleBtn.addEventListener("click", () => this.toggleTelephonyCodec());
     
     this.interruptBtn.addEventListener("click", () => {
       if (this.currentState === "SPEAKING") {
@@ -628,5 +674,5 @@ class DuplexVaniClient {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  window.duplexApp = new DuplexVaniClient();
+  window.duplexConsole = new DuplexVaniConsole();
 });
