@@ -74,44 +74,6 @@ DuplexVani features a dedicated **two-tier conversational state machine** that c
 
 ---
 
-## 🖥️ Enterprise Console Architecture
-
-Built with a high-contrast dark enterprise theme (`Inter` + `JetBrains Mono`) designed for busy trading desks and call-center monitors:
-
-```
-+----------------------------------------------------------------------------------------------------------------+
-|  [|||] DuplexVani  [ENTERPRISE CONSOLE v1.2]          [Mic: +6dB HIGH] [8kHz GSM: OFF] [Market Noise: OFF]     |
-|        Full-Duplex Indic Voice Infrastructure          [🛡️ Credit Shield: ON] [⚡ Auto-Detect Indic v] [ONLINE]|
-+----------------------------------------------------------------------------------------------------------------+
-|  CHANNEL 01 - ACTIVE AUDIO STREAM                   |  TELEMETRY & AUDIT                      SESSION #849201  |
-|  [CODEC: 48kHz HD] [MOS: 4.8] [MIC: +6dB BOOST]     |  +-------------+-------------+-------------+-------------+ |
-|                                                     |  | BARGE-IN    | TURNS       | STREAM RTT  | ENGINE      | |
-|  [●] READY (IDLE)              BARGE-IN LATENCY     |  | 2 Cutoffs   | 6 Rounds    | 4 ms (Ping) | Gnani v3    | |
-|      Microphone stream active.      3.8 ms          |  +-------------+-------------+-------------+-------------+ |
-|                                                     |                                                          |
-|  +------------------------------------------------+ |  REAL-TIME PIPELINE TELEMETRY          [PREEMPT: <5ms]   |
-|  | INPUT FREQUENCY (300Hz - 8kHz)          -36 dB | |  - Barge-In Cutoff   [===                         ] 3.8ms    |
-|  | [||||||||||||||||||||||||||||||||||||||||||||] | |  - LLM Reasoning   [========                    ] 248ms    |
-|  +------------------------------------------------+ |  - Timbre Synthesis  [==========                  ] 295ms    |
-|                                                     |  - Total E2E Turn    [================            ] 543ms    |
-|  CONVERSATION LANGUAGE:                             |                                                          |
-|  [ ⚡ Auto-Detect Indic ] [ 🇬🇧 English ] [ 🇮🇳 Hindi ]|  ======================================================= |
-|  [ 🇮🇳 Telugu (తెలుగు) ]  [ 🇮🇳 Tamil (தமிழ்) ]        |  🏛️ BHARAT TRANSACTION LEDGER      [TXN-AGRI-8492]       |
-|                                                     |  STATUS: [ ⚡ OVERRIDDEN VIA BARGE-IN ]                  |
-|  BHARAT ACOUSTIC ENVIRONMENT:                       |  ------------------------------------------------------- |
-|  [ 🎙️ Studio HD ] [ 📞 2G Telephony (8kHz GSM) ]   |  DOMAIN: Mandi Agri-Trade  | APMC: Indore APMC Mandi     |
-|  [ 🛒 Indian Bazaar (-18dB) ] [ 🚉 Railway Echo ]   |  ITEM: Mustard (Sarson)    | QTY: 10 Quintal             |
-|                                                     |  RATE: Rs. 5,400 / Qtl     | SETTLEMENT: Rs. 54,000      |
-|  [ 📞 Start Live Call ]  [ ⏹️ Interrupt (SPACE) ]    |  ⚡ Preemption: Cancelled 5 Qtl Wheat (Rs. 12,250)        |
-|  [ 🔴 Record Demo WAV ]                             |  - [12:30:01] Order Initiated: 5 Qtl Gehun @ Rs. 2,450   |
-|                                                     |  - [12:30:03] 🛑 Voice Barge-In Preemption (<50ms cutoff) |
-|  ENTERPRISE BENCHMARK SCENARIOS:                    |  - [12:30:04] 🔄 Overridden: 10 Qtl Sarson @ Rs. 5,400   |
-|  [ 🌾 Indore: 5 Qtl Gehun ] [ 🛑 Barge-In Override ] |  ======================================================= |
-|  [ 🏪 Ramesh Bhai 500 ]     [ 🛑 Barge-In Override ] |  [ 📋 Export Audit ] [ Clear Feed ]                      |
-+----------------------------------------------------------------------------------------------------------------+
-```
-
----
 
 ## ⚡ Full-Duplex Preemptive Barge-In Sequence
 
