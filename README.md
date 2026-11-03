@@ -22,7 +22,6 @@
 ## 📑 Table of Contents
 - [The Strategic Moat: DuplexVani vs Consumer Voice Bots](#-the-strategic-moat-duplexvani-vs-consumer-voice-bots)
 - [Bharat Transaction Ledger & State Machine](#-bharat-transaction-ledger--state-machine)
-- [Enterprise Console Architecture](#-enterprise-console-architecture)
 - [Full-Duplex Preemptive Barge-In Sequence](#-full-duplex-preemptive-barge-in-sequence)
 - [Latency Benchmark Waterfall](#-latency-benchmark-waterfall)
 - [Bharat Telephony DSP & Acoustic Environments](#-bharat-telephony-dsp--acoustic-environments)
