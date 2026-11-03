@@ -287,6 +287,71 @@
           </div>
         </div>
 
+        <!-- Bharat Enterprise Live Transaction Ledger Card -->
+        <div class="transaction-ledger-card" id="transactionLedgerCard">
+          <div class="ledger-header">
+            <div class="ledger-title-group">
+              <span class="ledger-kicker">ENTERPRISE STATE MACHINE</span>
+              <div class="ledger-main-title">
+                <span class="ledger-icon">🏛️</span>
+                <h3>Bharat Transaction Ledger</h3>
+              </div>
+            </div>
+            <div class="ledger-status-group">
+              <span class="tag-txn-id" id="txnIdTag">TXN: STANDBY</span>
+              <span class="badge-txn badge-idle" id="txnStatusBadge">AWAITING TRADE</span>
+            </div>
+          </div>
+
+          <!-- Active Preemption Alert Banner -->
+          <div class="txn-override-banner" id="txnOverrideBanner" style="display: none;">
+            <span class="override-icon">⚡</span>
+            <div class="override-text">
+              <strong>VOICE BARGE-IN PREEMPTION APPLIED</strong>
+              <span id="txnOverrideNote">Cancelled previous in-flight trade</span>
+            </div>
+          </div>
+
+          <!-- Transaction Fields Grid -->
+          <div class="ledger-grid">
+            <div class="ledger-field">
+              <span class="field-label">DOMAIN / DESK</span>
+              <span class="field-value" id="txnDomain">Agri-Commodity / Mandi</span>
+            </div>
+            <div class="ledger-field">
+              <span class="field-label">COUNTERPARTY / APMC</span>
+              <span class="field-value highlight" id="txnCounterparty">Indore APMC Mandi</span>
+            </div>
+            <div class="ledger-field">
+              <span class="field-label">COMMODITY / ITEM</span>
+              <span class="field-value highlight" id="txnItem">Wheat (Gehun)</span>
+            </div>
+            <div class="ledger-field">
+              <span class="field-label">QUANTITY / UNITS</span>
+              <span class="field-value" id="txnQuantity">5 Quintal</span>
+            </div>
+            <div class="ledger-field">
+              <span class="field-label">UNIT BENCHMARK</span>
+              <span class="field-value" id="txnRate">Rs. 2,450 / Quintal</span>
+            </div>
+            <div class="ledger-field total-field">
+              <span class="field-label">SETTLEMENT AMOUNT</span>
+              <span class="field-value total-value" id="txnTotal">Rs. 12,250</span>
+            </div>
+          </div>
+
+          <!-- Live Audit Trace -->
+          <div class="ledger-audit-box">
+            <div class="audit-head">
+              <span>REAL-TIME AUDIT LOG</span>
+              <span class="audit-badge" id="auditCountBadge">0 events</span>
+            </div>
+            <div class="audit-stream" id="txnAuditStream">
+              <div class="audit-item audit-init">Awaiting voice command to initiate trade ledger...</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Chronological Call Event Log & Voice Records Vault -->
         <div class="log-stream-wrapper">
           <div class="log-toolbar">

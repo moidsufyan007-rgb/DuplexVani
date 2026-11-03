@@ -29,6 +29,10 @@ class ConversationManager:
         self.session_start_time = time.time()
         self.current_playback_id: Optional[str] = None
 
+        # Enterprise Transactional State Machine
+        self.active_transaction: Optional[Dict[str, Any]] = None
+        self.transaction_history: List[Dict[str, Any]] = []
+
     def set_state(self, new_state: VoiceState) -> None:
         self.state = new_state
 
@@ -47,12 +51,22 @@ class ConversationManager:
         self.interruption_count += 1
         self.state = VoiceState.INTERRUPTED
         self.interrupt_event.set()
+
+        # If a business transaction was in flight, record that it was preempted by barge-in
+        if self.active_transaction:
+            self.active_transaction["status"] = "PREEMPTED_BY_BARGE_IN"
+            self.active_transaction["status_badge"] = "🛑 Preempted via Barge-In"
+            self.active_transaction["badge_class"] = "badge-preempted"
+            now_str = time.strftime("%H:%M:%S")
+            trail = self.active_transaction.setdefault("audit_trail", [])
+            trail.append(f"[{now_str}] 🛑 Preempted via Barge-In: Audio stream aborted ({latency}ms transit)")
         
         return {
             "event": "INTERRUPT_ACKNOWLEDGED",
             "state": self.state.value,
             "barge_in_latency_ms": latency,
-            "total_interruptions": self.interruption_count
+            "total_interruptions": self.interruption_count,
+            "transaction": self.active_transaction
         }
 
     def start_speaking(self, playback_id: str) -> None:
@@ -85,6 +99,12 @@ class ConversationManager:
         self.history.append({"role": "assistant", "text": text})
         self.turn_count += 1
 
+    def update_transaction(self, txn_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates or registers a live transactional intent (Mandi Trade, Kirana Ledger)."""
+        self.active_transaction = txn_data
+        self.transaction_history.append(txn_data)
+        return self.active_transaction
+
     def get_metrics(self) -> Dict[str, Any]:
         """Telemetry metrics to display on the live dashboard."""
         return {
@@ -93,5 +113,6 @@ class ConversationManager:
             "turn_count": self.turn_count,
             "interruption_count": self.interruption_count,
             "last_barge_in_latency_ms": self.last_barge_in_latency_ms or 0.0,
-            "uptime_seconds": round(time.time() - self.session_start_time, 1)
+            "uptime_seconds": round(time.time() - self.session_start_time, 1),
+            "active_transaction": self.active_transaction
         }

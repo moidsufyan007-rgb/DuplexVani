@@ -131,6 +131,22 @@ class DuplexVaniConsole {
     this.exportSessionAuditBtn = document.getElementById("exportSessionAuditBtn");
     this.currentActiveAuditReport = null;
 
+    // Bharat Enterprise Live Transaction Ledger Elements
+    this.transactionLedgerCard = document.getElementById("transactionLedgerCard");
+    this.txnIdTag = document.getElementById("txnIdTag");
+    this.txnStatusBadge = document.getElementById("txnStatusBadge");
+    this.txnOverrideBanner = document.getElementById("txnOverrideBanner");
+    this.txnOverrideNote = document.getElementById("txnOverrideNote");
+    this.txnDomain = document.getElementById("txnDomain");
+    this.txnCounterparty = document.getElementById("txnCounterparty");
+    this.txnItem = document.getElementById("txnItem");
+    this.txnQuantity = document.getElementById("txnQuantity");
+    this.txnRate = document.getElementById("txnRate");
+    this.txnTotal = document.getElementById("txnTotal");
+    this.txnAuditStream = document.getElementById("txnAuditStream");
+    this.auditCountBadge = document.getElementById("auditCountBadge");
+    this.currentTransaction = null;
+
     this.initWebSocket();
     this.initEventListeners();
     this.startSpectrumMeter();
@@ -194,6 +210,9 @@ class DuplexVaniConsole {
         this.sessionIdBadge.innerText = `SESSION #${msg.session_id.slice(-6)}`;
         this.setState("IDLE");
         this.addLogEntry("SYSTEM", `Channel linked. Mode: ${this.isLiveMode ? 'Live Gnani' : 'Credit Shield'}`);
+        if (msg.active_transaction) {
+          this.updateTransactionLedger(msg.active_transaction);
+        }
         break;
 
       case "MODE_UPDATED":
@@ -208,6 +227,10 @@ class DuplexVaniConsole {
         }
         break;
 
+      case "TRANSACTION_UPDATE":
+        this.updateTransactionLedger(msg.transaction);
+        break;
+
       case "INTERRUPT_CONFIRMED":
         const lat = msg.data.barge_in_latency_ms;
         const preempt = msg.data.task_preemption_ms || 2.4;
@@ -217,6 +240,20 @@ class DuplexVaniConsole {
         this.interruptCountEl.innerText = this.interruptionCount;
         this.setState("INTERRUPTED");
         this.subtitleText.innerText = `Preempted audio stream in ${preempt}ms. Listening...`;
+
+        // Instantly reflect voice preemption on the transaction ledger card
+        if (msg.transaction) {
+          this.updateTransactionLedger(msg.transaction);
+        } else if (this.currentTransaction) {
+          this.currentTransaction.status = "PREEMPTED_BY_BARGE_IN";
+          this.currentTransaction.status_badge = "🛑 PREEMPTED VIA BARGE-IN";
+          this.currentTransaction.badge_class = "badge-preempted";
+          const trail = this.currentTransaction.audit_trail || [];
+          trail.push(`[${new Date().toLocaleTimeString()}] 🛑 Voice Barge-In: Audio preempted (${lat}ms)`);
+          this.currentTransaction.audit_trail = trail;
+          this.updateTransactionLedger(this.currentTransaction);
+        }
+
         setTimeout(() => {
           if (this.currentState === "INTERRUPTED") {
             this.setState("LISTENING");
@@ -237,6 +274,11 @@ class DuplexVaniConsole {
         this.subtitleText.innerText = `Synthesizing (Devansh): "${msg.text}"`;
         this.addLogEntry("DEVANSH", `${msg.text}${ttsEngine}`, msg.playback_id);
         this.interruptBtn.disabled = false;
+
+        // Auto-update transaction ledger if payload included
+        if (msg.transaction) {
+          this.updateTransactionLedger(msg.transaction);
+        }
 
         // Auto-detected Indic Code-Switching feedback
         if (msg.detected_language && this.activeLangBadge) {
@@ -686,6 +728,56 @@ class DuplexVaniConsole {
     }
   }
 
+  // --- Bharat Enterprise Transaction Ledger Engine ---
+  updateTransactionLedger(txn) {
+    if (!txn) return;
+    this.currentTransaction = txn;
+
+    if (this.txnIdTag) this.txnIdTag.innerText = txn.txn_id || "TXN: --";
+    if (this.txnDomain) this.txnDomain.innerText = txn.domain_label || "Agri-Trade Desk";
+    if (this.txnCounterparty) this.txnCounterparty.innerText = txn.counterparty || "--";
+    if (this.txnItem) this.txnItem.innerText = txn.item || "--";
+    if (this.txnQuantity) this.txnQuantity.innerText = txn.quantity || "--";
+    if (this.txnRate) this.txnRate.innerText = txn.unit_rate || "--";
+    if (this.txnTotal) this.txnTotal.innerText = txn.total_amount || "Rs. 0";
+
+    // Status Badge
+    if (this.txnStatusBadge) {
+      this.txnStatusBadge.innerText = txn.status_badge || txn.status || "CONFIRMED";
+      this.txnStatusBadge.className = `badge-txn ${txn.badge_class || 'badge-confirmed'}`;
+    }
+
+    // Override / Preemption Banner
+    if (this.txnOverrideBanner && this.txnOverrideNote) {
+      if (txn.override_note) {
+        this.txnOverrideBanner.style.display = "flex";
+        this.txnOverrideNote.innerText = txn.override_note;
+      } else {
+        this.txnOverrideBanner.style.display = "none";
+      }
+    }
+
+    // Real-Time Audit Trace Feed
+    if (this.txnAuditStream && txn.audit_trail && txn.audit_trail.length > 0) {
+      this.txnAuditStream.innerHTML = "";
+      txn.audit_trail.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "audit-item";
+        if (item.includes("BARGE-IN") || item.includes("PREEMPTED")) {
+          div.className += " audit-preempt";
+        } else if (item.includes("OVERRIDE") || item.includes("APPLIED")) {
+          div.className += " audit-override";
+        }
+        div.innerText = item;
+        this.txnAuditStream.appendChild(div);
+      });
+      this.txnAuditStream.scrollTop = this.txnAuditStream.scrollHeight;
+      if (this.auditCountBadge) {
+        this.auditCountBadge.innerText = `${txn.audit_trail.length} events`;
+      }
+    }
+  }
+
   // --- Preemptive Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
@@ -1022,38 +1114,42 @@ class DuplexVaniConsole {
     let prompts = [];
     if (lang === "auto") {
       prompts = [
-        { label: '⚡ 🇬🇧 "Capital of India?"', text: "What is the capital of India?" },
-        { label: '⚡ 🇮🇳 "Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
-        { label: '⚡ 🇮🇳 "Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
-        { label: '⚡ 🇮🇳 "Vanakkam, yaar?"', text: "Vanakkam, neengal yaar matrum eppadi velai seigireergal?" },
-        { label: '🛑 "Wait, listen first!"', text: "Wait, hold on, listen to me first!", barge: true },
-        { label: '🛑 "Arre ruko, meri baat suno!"', text: "Arre ruko, pehle meri baat suno!", barge: true }
+        { label: '🌾 "Indore me 5 quintal gehun book karo"', text: "Indore Mandi me 5 quintal gehun book karo" },
+        { label: '🛑 "Wait, gehun nahi, 10 quintal sarson karo!"', text: "Wait, gehun nahi, 10 quintal sarson karo!", barge: true },
+        { label: '🏪 "Ramesh bhai ke khate me 500 likho"', text: "Ramesh bhai ke khate mein 500 rupay udhaar likho" },
+        { label: '🛑 "Ruko, 500 nahi, 1200 rupay udhaar hai!"', text: "Ruko, 500 nahi, 1200 rupay udhaar hai!", barge: true },
+        { label: '⚡ 🇬🇧 "Book 20 quintals soybean in Bhopal"', text: "Book 20 quintals of soybean in Bhopal Mandi" },
+        { label: '⚡ 🇮🇳 "రమేష్ భాయ్ ఖాతాలో 500 రాయండి"', text: "Ramesh bhai khata lo 500 rupayala udharu darju cheyandi" }
       ];
     } else if (lang === "te-IN") {
       prompts = [
-        { label: '"Meeru evaru?"', text: "Namaskaram, meeru evaru mariyu ela pani chestaru?" },
-        { label: '"Mandi Bhavam"', text: "Indore Mandi lo eeroju godhumalu mariyu ullipayala dharalu ela unnaayi?" },
-        { label: '🛑 "Aagandi, naaku cheppanivvandi!"', text: "Arre aagandi, modata naaku cheppanivvandi!", barge: true }
+        { label: '🌾 "Indore lo 5 quintalla godhumalu book cheyandi"', text: "Indore Mandi lo 5 quintalla godhumalu book cheyandi" },
+        { label: '🛑 "Aagandi, godhumalu kaadu, 10 quintalla aavalu!"', text: "Aagandi, godhumalu kaadu, 10 quintalla aavalu book cheyandi!", barge: true },
+        { label: '🏪 "Ramesh bhai khata lo 500 udharu darju cheyandi"', text: "Ramesh bhai khata lo 500 rupayala udharu darju cheyandi" },
+        { label: '🛑 "Aagandi, 500 kaadu, 1200 rupayalu darju cheyandi!"', text: "Aagandi, 500 kaadu, 1200 rupayalu darju cheyandi!", barge: true }
       ];
     } else if (lang === "ta-IN") {
       prompts = [
-        { label: '"Neengal yaar?"', text: "Vanakkam, neengal yaar matrum eppadi velai seigireergal?" },
-        { label: '"Sandhai Nilavaram"', text: "Inraiya sandhai nilavaram eppadi ulladhu?" },
-        { label: '🛑 "Nillungal, naan solgiren!"', text: "Arre nillungal, naan mudhalil pesugiren!", barge: true }
+        { label: '🌾 "Indore Mandiyil 5 quintal godhumai book seiyavum"', text: "Indore Mandiyil 5 quintal godhumai book seiyavum" },
+        { label: '🛑 "Nillungal, godhumai vendaam, 10 quintal kadugu!"', text: "Nillungal, godhumai vendaam, 10 quintal kadugu book seiyavum!", barge: true },
+        { label: '🏪 "Ramesh bhai kanakkil 500 roobai kadan"', text: "Ramesh bhai kanakkil 500 roobai kadan padhivu seiyavum" },
+        { label: '🛑 "Nillungal, 500 illai, 1,200 roobai padhivu seiyavum!"', text: "Nillungal, 500 illai, 1,200 roobai padhivu seiyavum!", barge: true }
       ];
     } else if (lang === "en-IN") {
       prompts = [
-        { label: '"Who are you?"', text: "Hello, who are you and how does DuplexVani work?" },
-        { label: '"Market Rates"', text: "What are the wheat and onion commodity prices today?" },
-        { label: '🛑 "Wait, listen to me first!"', text: "Wait, hold on, listen to me first!", barge: true }
+        { label: '🌾 "Book 5 quintals wheat in Indore Mandi"', text: "Book 5 quintals of wheat in Indore Mandi" },
+        { label: '🛑 "Wait, cancel wheat, book 10 quintals mustard!"', text: "Wait, cancel wheat, book 10 quintals of mustard instead!", barge: true },
+        { label: '🏪 "Add 500 rupees debit in Ramesh Bhai ledger"', text: "Add 500 rupees debit in Ramesh Bhai's ledger" },
+        { label: '🛑 "Hold on, not 500, make it 1,200 rupees debit!"', text: "Hold on, not 500, make it 1,200 rupees debit!", barge: true }
       ];
     } else {
       // Default Hindi / Hinglish
       prompts = [
-        { label: '"Aap kaun hain?"', text: "Namaste, aap kaun hain aur aap kaise kaam karte hain?" },
-        { label: '"Mandi Bhav Batao"', text: "Indore Mandi me aaj gehun aur pyaz ka kya bhav chal raha hai?" },
-        { label: '"Kirana Khata Note Karo"', text: "Ramesh bhai ke hisaab mein do packet doodh note kar lo udhaar." },
-        { label: '🛑 "Arre ruko, meri baat suno!"', text: "Arre ruko, pehle meri baat suno!", barge: true }
+        { label: '🌾 "Indore Mandi me 5 quintal gehun book karo"', text: "Indore Mandi me 5 quintal gehun book karo" },
+        { label: '🛑 "Wait, gehun nahi, 10 quintal sarson karo!"', text: "Wait, gehun nahi, 10 quintal sarson karo!", barge: true },
+        { label: '🏪 "Ramesh bhai ke khate mein 500 rupay udhaar likho"', text: "Ramesh bhai ke khate mein 500 rupay udhaar likho" },
+        { label: '🛑 "Ruko, 500 nahi, 1200 rupay udhaar hai!"', text: "Ruko, 500 nahi, 1200 rupay udhaar hai!", barge: true },
+        { label: '🌾 "Bhopal Mandi me 20 quintal soyabean book karo"', text: "Bhopal Mandi me 20 quintal soyabean book karo" }
       ];
     }
 
@@ -1401,6 +1497,7 @@ class DuplexVaniConsole {
       candidate: "Mohd Abdul Moid Sufiyan (MJCET, Solo Participant)",
       project: "DuplexVani — Real-Time Indic Full-Duplex Voice Infrastructure",
       generated_at: now.toISOString(),
+      active_transaction: this.currentTransaction,
       session_summary: {
         session_id: sessionId,
         take_title: takeRecord ? takeRecord.title : "Live Session Audit",
@@ -1436,6 +1533,25 @@ class DuplexVaniConsole {
     const s = report.session_summary;
     const l = report.latency_waterfall_telemetry;
     const a = s.acoustic_environment;
+    const t = report.active_transaction;
+
+    let txnSection = "";
+    if (t) {
+      txnSection = `
+---
+
+### 🏛️ Bharat Transaction Ledger (Live State Machine)
+- **Transaction ID:** \`${t.txn_id}\`
+- **Domain Desk:** ${t.domain_label || "Mandi Agri-Trade Desk"}
+- **Counterparty / APMC:** ${t.counterparty}
+- **Commodity / Item:** ${t.item}
+- **Quantity & Rate:** ${t.quantity} @ ${t.unit_rate}
+- **Total Settlement:** **${t.total_amount}**
+- **State Machine Status:** **${t.status_badge || t.status}**
+${t.override_note ? `- **Barge-In Preemption Note:** ${t.override_note}` : ""}
+${t.audit_trail ? t.audit_trail.map(item => `  - \`${item}\``).join("\n") : ""}
+`;
+    }
 
     return `# 🎙️ DuplexVani — Call Telemetry & Audit Report
 **Challenge:** ${report.benchmark}
@@ -1443,7 +1559,7 @@ class DuplexVaniConsole {
 **Session ID:** \`${s.session_id}\`
 **Take:** ${s.take_title} (${s.duration})
 **Generated:** ${new Date(report.generated_at).toLocaleString()}
-
+${txnSection}
 ---
 
 ### ⚡ Key Performance Indicators (KPIs)
@@ -1461,7 +1577,7 @@ class DuplexVaniConsole {
 ---
 
 ### 📝 Synchronized Dual-Track Transcript
-${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*" : report.conversation_transcript.map(t => `- \`${t.timestamp}\` **[${t.speaker}]**: ${t.utterance}`).join("\n")}
+${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*" : report.conversation_transcript.map(tr => `- \`${tr.timestamp}\` **[${tr.speaker}]**: ${tr.utterance}`).join("\n")}
 
 ---
 *Report certified by DuplexVani Real-Time Telemetry Engine.*`;
@@ -1479,6 +1595,24 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
       const s = report.session_summary;
       const l = report.latency_waterfall_telemetry;
       const a = s.acoustic_environment;
+
+      let txnHtml = "";
+      if (report.active_transaction) {
+        const txn = report.active_transaction;
+        txnHtml = `
+          <div class="audit-section-heading">BHARAT TRANSACTION LEDGER & PREEMPTION AUDIT</div>
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.45rem; padding: 0.65rem; font-family: var(--font-mono); font-size: 0.72rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span><strong>ID:</strong> ${txn.txn_id}</span>
+              <span style="color: #38bdf8;"><strong>${txn.status_badge || txn.status}</strong></span>
+            </div>
+            <div>• <strong>Desk / Counterparty:</strong> ${txn.domain_label} &bull; ${txn.counterparty}</div>
+            <div>• <strong>Item & Quantity:</strong> ${txn.item} &bull; ${txn.quantity} (@ ${txn.unit_rate})</div>
+            <div>• <strong>Total Settlement:</strong> <strong style="color: #34d399;">${txn.total_amount}</strong></div>
+            ${txn.override_note ? `<div style="color: #f87171;">• <strong>Preemption Note:</strong> ${txn.override_note}</div>` : ""}
+          </div>
+        `;
+      }
 
       this.auditModalContent.innerHTML = `
         <div class="audit-meta-grid">
@@ -1508,6 +1642,8 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
           <div>• <strong>Total Roundtrip:</strong> ${l.total_e2e_turn_ms}</div>
           <div>• <strong>WebSocket Stream Ping:</strong> ${l.websocket_stream_rtt_ms}</div>
         </div>
+
+        ${txnHtml}
 
         <div class="audit-section-heading">SYNCHRONIZED CONVERSATION AUDIT LOG</div>
         <div class="audit-transcript-box">

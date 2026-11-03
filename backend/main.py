@@ -87,19 +87,29 @@ async def process_speech_turn(
             effective_language = llm_service.detect_language(user_text)
         language_label = llm_service.get_language_name(effective_language)
 
-        # 3. Generate response via Multilingual LLM Brain
+        # 3. Generate response via Multilingual LLM Brain & Bharat Transaction Engine
         manager.set_state(VoiceState.PROCESSING)
         await websocket.send_json({"type": "STATE_CHANGE", "state": VoiceState.PROCESSING.value})
 
         was_interrupted = manager.consume_interruption()
         t_llm = time.time()
-        reply_text = await llm_service.generate_response(
+        reply_text, txn_data = await llm_service.generate_response(
             user_text, 
             manager.history, 
             was_interrupted=was_interrupted,
-            language=effective_language
+            language=effective_language,
+            active_txn=manager.active_transaction,
+            return_transaction=True
         )
         llm_latency_ms = round((time.time() - t_llm) * 1000, 1)
+
+        # Broadcast live transaction state if updated
+        if txn_data:
+            manager.update_transaction(txn_data)
+            await websocket.send_json({
+                "type": "TRANSACTION_UPDATE",
+                "transaction": txn_data
+            })
 
         # 4. Notify client that assistant speech is beginning
         playback_id = f"play_{int(time.time()*1000)}"
@@ -113,7 +123,8 @@ async def process_speech_turn(
             "llm_ms": llm_latency_ms,
             "detected_language": effective_language,
             "language_name": language_label,
-            "is_auto_switched": language.startswith("auto")
+            "is_auto_switched": language.startswith("auto"),
+            "transaction": manager.active_transaction
         })
 
         # 5. Synthesize voice audio via Gnani Timbre
@@ -194,7 +205,8 @@ async def duplex_websocket_endpoint(websocket: WebSocket):
 
                 await websocket.send_json({
                     "type": "INTERRUPT_CONFIRMED",
-                    "data": interrupt_meta
+                    "data": interrupt_meta,
+                    "transaction": manager.active_transaction
                 })
 
             # 2. USER TOGGLED CREDIT SHIELD / LIVE GNANI MODE
