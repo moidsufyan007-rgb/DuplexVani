@@ -33,6 +33,12 @@
 
       <!-- Controls & Status Bar -->
       <div class="controls-cluster">
+        <!-- Mic Sensitivity Boost Toggle -->
+        <button id="micBoostToggleBtn" class="pill-btn pill-neutral mic-boost-active" title="Toggle High Sensitivity Microphone Pre-Amp (+6dB Boost for Low Voices)">
+          <span class="pill-indicator"></span>
+          <span class="pill-label">Mic Sensitivity: <strong id="micBoostStatusText">+6dB (HIGH)</strong></span>
+        </button>
+
         <!-- Telephony Codec Simulator Toggle -->
         <button id="telephonyToggleBtn" class="pill-btn pill-neutral" title="Toggle 8kHz GSM Telephonic Codec Simulation">
           <span class="pill-indicator"></span>
@@ -86,6 +92,7 @@
             <span class="meta-tag" id="bandwidthBadge">BANDWIDTH: 20Hz - 20kHz</span>
             <span class="meta-tag" id="mosBadge">MOS: 4.8 / 5.0</span>
             <span class="meta-tag" id="activeLangBadge">LANG: AUTO-DETECT INDIC</span>
+            <span class="meta-tag" id="micSensitivityBadge">MIC: +6dB BOOST</span>
             <span class="meta-tag" id="noiseBadge">AMBIENCE: CLEAN</span>
             <span class="meta-tag">VOICE: DEVANSH (MALE)</span>
           </div>

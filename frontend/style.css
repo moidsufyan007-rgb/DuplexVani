@@ -137,6 +137,17 @@ body.enterprise-theme {
   background: var(--text-muted);
 }
 
+/* Mic Sensitivity Boost Pill State */
+.pill-btn.mic-boost-active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+}
+.pill-btn.mic-boost-active .pill-indicator {
+  background: var(--color-green);
+  box-shadow: 0 0 8px var(--color-green);
+}
+
 /* Telephony Pill State */
 .pill-btn.telephony-active {
   background: rgba(245, 158, 11, 0.15);

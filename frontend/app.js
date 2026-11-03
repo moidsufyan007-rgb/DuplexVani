@@ -33,8 +33,11 @@ class DuplexVaniConsole {
     this.isNoiseActive = false;       // Default: Clean ambience (Off)
     this.isCallActive = false;        // Hands-free continuous live call state
     this.silenceTimeout = null;
-    this.silenceDelayMs = 750;        // 750ms natural pause triggers automatic answer
+    this.silenceDelayMs = 1100;       // 1100ms natural human pause window (prevents dropping low voices mid-sentence)
     this.recognizedTranscript = "";
+    this.latestHeardText = "";
+    this.micSensitivityBoost = true;  // High sensitivity pre-amp boost (+6dB) enabled by default
+    this.micPreAmp = null;
     
     // UI Elements
     this.statusBanner = document.getElementById("statusBanner");
@@ -45,11 +48,14 @@ class DuplexVaniConsole {
     this.meterDbDisplay = document.getElementById("meterDbDisplay");
     this.codecBadge = document.getElementById("codecBadge");
     this.noiseBadge = document.getElementById("noiseBadge");
+    this.micSensitivityBadge = document.getElementById("micSensitivityBadge");
     
     this.toggleMicBtn = document.getElementById("toggleMicBtn");
     this.toggleMicBtnText = document.getElementById("toggleMicBtnText");
     this.interruptBtn = document.getElementById("interruptBtn");
     
+    this.micBoostToggleBtn = document.getElementById("micBoostToggleBtn");
+    this.micBoostStatusText = document.getElementById("micBoostStatusText");
     this.telephonyToggleBtn = document.getElementById("telephonyToggleBtn");
     this.telephonyStatusText = document.getElementById("telephonyStatusText");
     this.noiseToggleBtn = document.getElementById("noiseToggleBtn");
@@ -460,6 +466,29 @@ class DuplexVaniConsole {
     }
   }
 
+  // --- Microphone Software Pre-Amplifier Gain Boost (+6dB for Low Voices) ---
+  toggleMicSensitivity() {
+    this.micSensitivityBoost = !this.micSensitivityBoost;
+    const gainVal = this.micSensitivityBoost ? 2.2 : 1.0;
+    if (this.micPreAmp && this.audioCtx) {
+      this.micPreAmp.gain.setValueAtTime(gainVal, this.audioCtx.currentTime);
+    }
+    if (this.micBoostStatusText) {
+      this.micBoostStatusText.innerText = this.micSensitivityBoost ? "+6dB (HIGH)" : "0dB (NORMAL)";
+    }
+    if (this.micBoostToggleBtn) {
+      if (this.micSensitivityBoost) {
+        this.micBoostToggleBtn.classList.add("mic-boost-active");
+      } else {
+        this.micBoostToggleBtn.classList.remove("mic-boost-active");
+      }
+    }
+    if (this.micSensitivityBadge) {
+      this.micSensitivityBadge.innerText = this.micSensitivityBoost ? "MIC: +6dB BOOST" : "MIC: 0dB NORMAL";
+    }
+    this.addLogEntry("SYSTEM", `[MIC] Input Sensitivity updated: ${this.micSensitivityBoost ? "High Sensitivity (+6dB Pre-Amp Boost for low voices)" : "Standard (0dB)"}`);
+  }
+
   // --- Real-time DSP Routing for 8kHz Bandpass, Saturation, and PA Acoustics ---
   routeThroughAcousticProcessor(source, outputNode) {
     if (this.acousticPreset === "hd" || !this.audioCtx) {
@@ -789,16 +818,28 @@ class DuplexVaniConsole {
 
       if (!this.micStream) {
         this.micStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+          audio: { 
+            echoCancellation: true, 
+            noiseSuppression: false, // Prevents Chrome from gating/dropping low voices and quiet syllables
+            autoGainControl: true,   // Automatically boosts low volume
+            channelCount: 1
+          } 
         });
       }
 
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.4;
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
-      micSource.connect(this.analyser);
+
+      // Hardware/Software Pre-Amp Boost Node (+6dB / 2.2x Gain for Low Voices)
+      this.micPreAmp = this.audioCtx.createGain();
+      this.micPreAmp.gain.value = this.micSensitivityBoost ? 2.2 : 1.0;
+      micSource.connect(this.micPreAmp);
+      this.micPreAmp.connect(this.analyser);
+
       if (this.sessionRecordDestination) {
-        micSource.connect(this.sessionRecordDestination);
+        this.micPreAmp.connect(this.sessionRecordDestination);
       }
       this.micSourceNode = micSource;
 
@@ -855,9 +896,11 @@ class DuplexVaniConsole {
     }
 
     this.recognizedTranscript = "";
+    this.latestHeardText = "";
     const rec = new SpeechRecognition();
     rec.continuous = true;
     rec.interimResults = true;
+    rec.maxAlternatives = 3;
     // In auto mode, en-IN captures both English and Romanized Hinglish accurately
     rec.lang = (this.selectedLanguage === "auto") ? "en-IN" : this.selectedLanguage;
 
@@ -877,8 +920,10 @@ class DuplexVaniConsole {
         }
       }
 
-      const heard = (this.recognizedTranscript + interim).trim();
+      // Preserve all words including interim speech so low voices and soft syllables are never lost
+      const heard = (this.recognizedTranscript + " " + interim).replace(/\s+/g, " ").trim();
       if (heard) {
+        this.latestHeardText = heard;
         this.subtitleText.innerText = `You: "${heard}"`;
         // Reset natural pause/silence timer
         this.resetSilenceTimer();
@@ -887,15 +932,23 @@ class DuplexVaniConsole {
 
     rec.onerror = (e) => {
       console.warn("Speech recognition notice:", e.error);
+      if (e.error === "no-speech") {
+        // Safe to ignore in continuous mode
+        return;
+      }
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         this.speechPermissionDenied = true;
       }
     };
 
     rec.onend = () => {
-      // Reconnect microphone listener seamlessly while call is active
-      if (this.isCallActive) {
-        try { rec.start(); } catch (e) {}
+      // Reconnect microphone listener seamlessly while call is active with 50ms guard
+      if (this.isCallActive && !this.speechPermissionDenied) {
+        setTimeout(() => {
+          if (this.isCallActive) {
+            try { rec.start(); } catch (e) {}
+          }
+        }, 50);
       }
     };
 
@@ -915,13 +968,15 @@ class DuplexVaniConsole {
 
     if (!this.isCallActive) return;
 
-    // Detect 750ms of silence after the user finishes speaking
+    // Detect natural silence (1100ms) after the user finishes speaking
     this.silenceTimeout = setTimeout(() => {
-      const textToSend = (this.recognizedTranscript || "").trim();
+      // Transmit latestHeardText or recognizedTranscript so no soft word is dropped
+      const textToSend = (this.latestHeardText || this.recognizedTranscript || "").trim();
       if (textToSend.length > 0 && this.currentState !== "SPEAKING" && this.currentState !== "PROCESSING") {
         console.log("Automatic turn-taking triggered for utterance:", textToSend);
         this.sendFinalUtterance(textToSend);
         this.recognizedTranscript = "";
+        this.latestHeardText = "";
       }
     }, this.silenceDelayMs);
   }
@@ -1580,6 +1635,9 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
   initEventListeners() {
     this.toggleMicBtn.addEventListener("click", () => this.toggleCall());
     this.modeToggleBtn.addEventListener("click", () => this.toggleMode());
+    if (this.micBoostToggleBtn) {
+      this.micBoostToggleBtn.addEventListener("click", () => this.toggleMicSensitivity());
+    }
     this.telephonyToggleBtn.addEventListener("click", () => this.toggleTelephonyCodec());
     this.noiseToggleBtn.addEventListener("click", () => this.toggleMarketNoise());
     this.recordSessionBtn.addEventListener("click", () => this.toggleSessionRecording());
