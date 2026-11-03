@@ -28,6 +28,7 @@
 - [Bharat Telephony DSP & Acoustic Environments](#-bharat-telephony-dsp--acoustic-environments)
 - [Zero-Click Indic Code-Switching](#-zero-click-indic-code-switching)
 - [Software Pre-Amp Boost (+6dB Sensitivity)](#-software-pre-amp-boost-6db-sensitivity)
+- [Technology Stack & Frameworks](#-technology-stack--frameworks)
 - [Project Structure](#-project-structure)
 - [Automated Testing & Verification](#-automated-testing--verification)
 - [Quickstart Guide](#-quickstart-guide)
@@ -200,6 +201,52 @@ To solve the common problem of dropped whispers, quiet Indian accents, and aggre
 - DuplexVani disables Chrome's aggressive high-pass gate (`noiseSuppression: false`).
 - Inserts an in-line **Web Audio Software Pre-Amp Gain Node** with **$+6\text{ dB} / 2.2\times$ Gain Boost**.
 - Merges both `interim` and `final` speech recognition tokens so not a single quiet syllable is lost.
+
+---
+
+## 🛠️ Technology Stack & Frameworks
+
+<div align="center">
+
+### 🎙️ Voice AI & Speech Infrastructure
+[![Gnani AI](https://img.shields.io/badge/Gnani%20AI-Prisma%20STT%20%2B%20Timbre%20TTS-0052CC?style=for-the-badge&logo=soundcharts&logoColor=white)](https://gnani.ai/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-3.5%20Flash%20Cascade-8E75C2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+
+### ⚡ Backend & Asynchronous Runtime
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Uvicorn](https://img.shields.io/badge/Uvicorn-ASGI%20Server-499848?style=for-the-badge&logo=gunicorn&logoColor=white)](https://www.uvicorn.org/)
+[![WebSockets](https://img.shields.io/badge/WebSockets-Full--Duplex%20Bi--directional-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://websockets.readthedocs.io/)
+[![Asyncio](https://img.shields.io/badge/Asyncio-Sub--5ms%20Preemption-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://docs.python.org/3/library/asyncio.html)
+[![HTTPX](https://img.shields.io/badge/HTTPX-Async%20Client-111111?style=for-the-badge&logo=python&logoColor=white)](https://www.python-httpx.org/)
+
+### 🎛️ Client Engine & Acoustic Signal Processing
+[![HTML5](https://img.shields.io/badge/HTML5-Semantic%20DOM-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
+[![CSS3](https://img.shields.io/badge/CSS3-Enterprise%20Design%20System-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B%20Vanilla%20Engine-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![Web Audio API](https://img.shields.io/badge/Web%20Audio%20API-DSP%20%2B%20ITU--T%20GSM-FF6F00?style=for-the-badge&logo=audio-technica&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+
+### 🧪 Quality Engineering & DevOps
+[![Pytest](https://img.shields.io/badge/Pytest-100%25%20Green%20(10%20Tests)-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
+[![Git](https://img.shields.io/badge/Git-Version%20Control-F05032?style=for-the-badge&logo=git&logoColor=white)](https://git-scm.com/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/moidsufyan007-rgb/DuplexVani)
+
+</div>
+
+---
+
+### 🔍 Architectural Layer Breakdown
+
+| Layer | Technology | Official Logo | Architectural Role |
+| :--- | :--- | :---: | :--- |
+| **Speech-to-Text (STT)** | **Gnani Prisma v3.0** | <img src="https://img.icons8.com/color/48/microphone--v1.png" width="30" alt="STT"/> | Primary Indic voice recognition engine, supporting colloquial Hinglish, Telugu, Tamil, and Hindi. |
+| **Text-to-Speech (TTS)** | **Gnani Timbre v3.0** | <img src="https://img.icons8.com/color/48/speaker.png" width="30" alt="TTS"/> | Real-time broadcast-grade speech synthesis delivering natural male (*Devansh*) 48kHz audio. |
+| **Conversational Core** | **Google Gemini 3.5 Flash** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" width="30" alt="Gemini"/> | Dynamic multi-model reasoning cascade for open-ended queries with 0-token thinking budget. |
+| **Application Gateway** | **FastAPI + Uvicorn** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" width="30" alt="FastAPI"/> | Asynchronous ASGI server hosting `/ws/duplex` bi-directional voice streaming gateway. |
+| **Concurrency & Preemption**| **Python Asyncio** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" width="30" alt="Python"/> | Sub-5ms task preemption engine executing instantaneous `active_task.cancel()` upon voice barge-in. |
+| **Acoustic DSP Processor** | **Web Audio API** | <img src="https://img.icons8.com/color/48/audio-wave--v1.png" width="30" alt="WebAudio"/> | In-browser DSP filtering: 8kHz GSM bandpass, carbon saturation, +6dB software pre-amp, and line hum. |
+| **Client Interface** | **Vanilla JS (ES6+)** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" width="30" alt="JS"/> | Zero-bloat, high-performance DOM orchestration with sub-millisecond telemetry meters and live ledger sync. |
+| **Testing Harness** | **Pytest & Pytest-Asyncio** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytest/pytest-original.svg" width="30" alt="Pytest"/> | 10/10 automated tests validating full-duplex cancellation, language detection, and ledger state machines. |
 
 ---
 
