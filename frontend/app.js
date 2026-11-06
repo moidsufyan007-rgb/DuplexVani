@@ -145,6 +145,14 @@ class DuplexVaniConsole {
     this.txnTotal = document.getElementById("txnTotal");
     this.txnAuditStream = document.getElementById("txnAuditStream");
     this.auditCountBadge = document.getElementById("auditCountBadge");
+    this.rttDisplayTile = document.getElementById("rttDisplayTile");
+    this.preemptLaserLine = document.getElementById("preemptLaserLine");
+    this.diffOldOrder = document.getElementById("diffOldOrder");
+    this.diffOldName = document.getElementById("diffOldName");
+    this.diffOldAmt = document.getElementById("diffOldAmt");
+    this.diffActiveOrder = document.getElementById("diffActiveOrder");
+    this.diffActiveAmt = document.getElementById("diffActiveAmt");
+    this.txnTimeTag = document.getElementById("txnTimeTag");
     this.currentTransaction = null;
 
     this.initWebSocket();
@@ -308,7 +316,8 @@ class DuplexVaniConsole {
       case "PONG":
         const now = performance.now();
         this.rtt = Math.round(now - msg.client_ts);
-        this.rttDisplay.innerText = `${this.rtt} ms`;
+        if (this.rttDisplay) this.rttDisplay.innerText = `${this.rtt} ms`;
+        if (this.rttDisplayTile) this.rttDisplayTile.innerText = `${this.rtt} ms`;
         break;
     }
   }
@@ -740,6 +749,8 @@ class DuplexVaniConsole {
     if (this.txnQuantity) this.txnQuantity.innerText = txn.quantity || "--";
     if (this.txnRate) this.txnRate.innerText = txn.unit_rate || "--";
     if (this.txnTotal) this.txnTotal.innerText = txn.total_amount || "Rs. 0";
+    if (this.diffActiveAmt) this.diffActiveAmt.innerText = txn.total_amount || "Rs. 0";
+    if (this.txnTimeTag) this.txnTimeTag.innerText = txn.timestamp || new Date().toLocaleTimeString();
 
     // Status Badge
     if (this.txnStatusBadge) {
@@ -754,6 +765,27 @@ class DuplexVaniConsole {
         this.txnOverrideNote.innerText = txn.override_note;
       } else {
         this.txnOverrideBanner.style.display = "none";
+      }
+    }
+
+    // Strikethrough Visual Diffing on Line Items
+    if (this.diffOldOrder) {
+      if (txn.override_note && (txn.status === "OVERRIDDEN_AND_CONFIRMED" || txn.override_note.includes("Cancelled") || txn.override_note.includes("Corrected"))) {
+        this.diffOldOrder.style.display = "flex";
+        let oldStr = txn.override_note.replace("Cancelled ", "").replace("Corrected from ", "").trim();
+        let oldAmt = "";
+        if (oldStr.includes("(")) {
+          const parts = oldStr.split("(");
+          oldStr = parts[0].trim();
+          oldAmt = parts[1].replace(")", "").trim();
+        } else if (oldStr.includes("Rs.")) {
+          oldAmt = oldStr;
+          oldStr = "Previous Order";
+        }
+        if (this.diffOldName) this.diffOldName.innerText = oldStr;
+        if (this.diffOldAmt) this.diffOldAmt.innerText = oldAmt;
+      } else {
+        this.diffOldOrder.style.display = "none";
       }
     }
 
@@ -781,6 +813,14 @@ class DuplexVaniConsole {
   // --- Preemptive Barge-In Engine ---
   triggerBargeIn() {
     const triggerTs = performance.now();
+
+    // Flash Preemption Laser Cutoff Marker on Visualizer
+    if (this.preemptLaserLine) {
+      this.preemptLaserLine.style.display = "block";
+      setTimeout(() => {
+        if (this.preemptLaserLine) this.preemptLaserLine.style.display = "none";
+      }, 1600);
+    }
 
     if (this.currentSource) {
       try {
@@ -1155,11 +1195,33 @@ class DuplexVaniConsole {
 
     this.chipsRow.innerHTML = "";
     prompts.forEach(p => {
-      const btn = document.createElement("button");
-      btn.className = `chip ${p.barge ? "chip-barge" : ""}`;
-      btn.setAttribute("data-text", p.text);
-      btn.innerText = p.label;
-      btn.addEventListener("click", () => {
+      const card = document.createElement("button");
+      card.className = `scenario-card ${p.barge ? "barge-trigger" : ""}`;
+      card.setAttribute("data-text", p.text);
+
+      let tagClass = "tag-booking";
+      let tagText = "🌾 MANDI TRADE";
+      let metaText = "APMC Mandi";
+
+      if (p.barge) {
+        tagClass = "tag-barge";
+        tagText = "🛑 BARGE-IN TRIGGER";
+        metaText = "<50ms Cutoff";
+      } else if (p.text.toLowerCase().includes("khata") || p.text.toLowerCase().includes("udhaar") || p.text.toLowerCase().includes("debit") || p.text.toLowerCase().includes("రమేష్")) {
+        tagClass = "tag-khata";
+        tagText = "🏪 KIRANA KHATA";
+        metaText = "Khata Ledger";
+      }
+
+      card.innerHTML = `
+        <div class="scenario-header">
+          <span class="scenario-tag ${tagClass}">${tagText}</span>
+          <span class="scenario-meta">${metaText}</span>
+        </div>
+        <div class="scenario-text">${p.label || ('"' + p.text + '"')}</div>
+      `;
+
+      card.addEventListener("click", () => {
         if (this.audioCtx && this.audioCtx.state === "suspended") {
           this.audioCtx.resume();
         }
@@ -1170,7 +1232,7 @@ class DuplexVaniConsole {
           this.sendFinalUtterance(p.text);
         }
       });
-      this.chipsRow.appendChild(btn);
+      this.chipsRow.appendChild(card);
     });
   }
 
@@ -1700,7 +1762,7 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
     });
   }
 
-  // --- Professional Linear Studio Spectrum Bars ---
+  // --- Dual-Track Waveform Studio (Assistant CH A vs User CH B) ---
   startSpectrumMeter() {
     const bufferLength = 48;
     const dataArray = new Uint8Array(bufferLength);
@@ -1710,7 +1772,8 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
 
       const width = this.canvas.width;
       const height = this.canvas.height;
-      this.canvasCtx.clearRect(0, 0, width, height);
+      const ctx = this.canvasCtx;
+      ctx.clearRect(0, 0, width, height);
 
       let maxVal = 0;
       if (this.analyser) {
@@ -1721,20 +1784,43 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
       }
 
       const db = maxVal > 0 ? Math.round((maxVal / 255) * 48 - 48) : -48;
-      this.meterDbDisplay.innerText = `${db} dB`;
+      if (this.meterDbDisplay) this.meterDbDisplay.innerText = `${db} dB`;
 
-      const barWidth = (width / bufferLength) - 2;
-      let x = 0;
+      const midY = height / 2;
+      const isSpeaking = this.currentState === "SPEAKING";
+      const isInterrupted = this.currentState === "INTERRUPTED";
+      const isListening = this.currentState === "LISTENING";
 
+      // Midline Divider
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, midY);
+      ctx.lineTo(width, midY);
+      ctx.stroke();
+
+      const barWidth = (width / bufferLength) - 1.5;
+
+      // Track A (Top: Devansh Speech Output)
       for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255.0) * height * 0.9;
-        const isSpeaking = this.currentState === "SPEAKING";
+        let barH = 0;
+        if (isSpeaking && !isInterrupted) {
+          barH = (dataArray[i] / 255) * (midY - 6);
+        }
+        ctx.fillStyle = isInterrupted ? "#ef4444" : "#2563eb";
+        const x = i * (barWidth + 1.5);
+        ctx.fillRect(x, midY - barH, barWidth, barH);
+      }
 
-        this.canvasCtx.fillStyle = isSpeaking ? "#10b981" : "#3b82f6";
-        if (this.currentState === "INTERRUPTED") this.canvasCtx.fillStyle = "#ef4444";
-
-        this.canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
-        x += barWidth + 2;
+      // Track B (Bottom: User Microphone / Pre-Amp Boost)
+      for (let i = 0; i < bufferLength; i++) {
+        let barH = 0;
+        if (isListening || (!isSpeaking && maxVal > 15)) {
+          barH = (dataArray[i] / 255) * (midY - 6);
+        }
+        ctx.fillStyle = isInterrupted ? "#f87171" : "#10b981";
+        const x = i * (barWidth + 1.5);
+        ctx.fillRect(x, midY, barWidth, barH);
       }
     };
 

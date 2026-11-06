@@ -7,57 +7,67 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="enterprise-theme">
   <div class="desk-container">
-    <!-- Top App Bar -->
+    
+    <!-- Top Executive Header -->
     <header class="top-bar">
+      <!-- Brand & Platform Identity -->
       <div class="brand-cluster">
         <div class="console-logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <rect width="18" height="18" x="3" y="3" rx="2"/>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="3"/>
             <path d="M7 9v6"/>
-            <path d="M12 7v10"/>
-            <path d="M17 11v2"/>
+            <path d="M12 6v12"/>
+            <path d="M17 10v4"/>
           </svg>
         </div>
         <div class="brand-titles">
           <div class="brand-row">
             <h1>DuplexVani</h1>
-            <span class="version-tag">ENTERPRISE CONSOLE v1.2</span>
+            <span class="version-tag">APMC ENTERPRISE DESK v2.0</span>
           </div>
           <p class="brand-sub">Real-Time Full-Duplex Indic Voice Infrastructure • Powered by Gnani AI</p>
         </div>
       </div>
 
-      <!-- Controls & Status Bar -->
+      <!-- Central Live WebSocket Stream Capsule -->
+      <div class="live-capsule" id="liveStreamCapsule" title="Bi-directional WebSocket Audio Stream Status">
+        <span class="capsule-pulse-dot"></span>
+        <span class="capsule-title">FULL-DUPLEX WEBSOCKET LIVE</span>
+        <span class="capsule-divider">|</span>
+        <span class="capsule-rtt" id="rttDisplay">-- ms</span>
+      </div>
+
+      <!-- Controls & Governance Cluster -->
       <div class="controls-cluster">
-        <!-- Mic Sensitivity Boost Toggle -->
-        <button id="micBoostToggleBtn" class="pill-btn pill-neutral mic-boost-active" title="Toggle High Sensitivity Microphone Pre-Amp (+6dB Boost for Low Voices)">
+        <!-- Mic Sensitivity Pre-Amp Boost (+6dB) -->
+        <button id="micBoostToggleBtn" class="pill-btn pill-neutral mic-boost-active" title="Toggle High Sensitivity Software Pre-Amp (+6dB Boost for Soft Speech)">
           <span class="pill-indicator"></span>
-          <span class="pill-label">Mic Sensitivity: <strong id="micBoostStatusText">+6dB (HIGH)</strong></span>
+          <span class="pill-label">Mic Gain: <strong id="micBoostStatusText">+6dB (HIGH)</strong></span>
         </button>
 
-        <!-- Telephony Codec Simulator Toggle -->
-        <button id="telephonyToggleBtn" class="pill-btn pill-neutral" title="Toggle 8kHz GSM Telephonic Codec Simulation">
+        <!-- 8kHz GSM Telephony Codec Simulator -->
+        <button id="telephonyToggleBtn" class="pill-btn pill-neutral" title="Simulate ITU-T G.711 8kHz GSM Telephony Bandpass & Line Saturation">
           <span class="pill-indicator"></span>
           <span class="pill-label">8kHz GSM: <strong id="telephonyStatusText">OFF</strong></span>
         </button>
 
-        <!-- Indian Market / Traffic Noise Simulator Toggle -->
-        <button id="noiseToggleBtn" class="pill-btn pill-neutral" title="Simulate Indian Market & Traffic Background Noise">
+        <!-- Indian Mandi / Bazaar Noise Simulator -->
+        <button id="noiseToggleBtn" class="pill-btn pill-neutral" title="Simulate Indian Mandi & Street Traffic Ambient Noise (-18dB SNR)">
           <span class="pill-indicator"></span>
           <span class="pill-label">Market Noise: <strong id="noiseStatusText">OFF</strong></span>
         </button>
 
-        <!-- Credit Shield / Live Toggle -->
-        <button id="modeToggleBtn" class="pill-btn pill-shield" title="Toggle Credit Shield / Live Gnani Mode">
+        <!-- Credit Shield / Live Gnani API Mode -->
+        <button id="modeToggleBtn" class="pill-btn pill-shield" title="Toggle Credit Shield / Live Gnani API Stream">
           <span id="modeIcon">🛡️</span>
           <span id="modeText">Credit Shield (Free)</span>
         </button>
 
-        <!-- Language Selector -->
+        <!-- Language Selector Dropdown -->
         <div class="select-wrapper">
           <label for="langSelect" class="sr-only">Language</label>
           <select id="langSelect" class="console-select">
@@ -70,7 +80,7 @@
           </select>
         </div>
 
-        <!-- Connection State -->
+        <!-- Connection State Badge -->
         <div class="connection-badge" id="connBadge">
           <span class="badge-dot"></span>
           <span id="connStatusText">ONLINE</span>
@@ -78,23 +88,26 @@
       </div>
     </header>
 
-    <!-- Main Console Grid -->
+    <!-- Main Enterprise Layout Grid (Zero-Scroll 16:9 Layout) -->
     <main class="console-layout">
-      <!-- Left Column: Audio Operations Channel -->
+      
+      <!-- ================================================================= -->
+      <!-- LEFT COLUMN: VOICE OPERATIONS & ACOUSTIC STREAM                   -->
+      <!-- ================================================================= -->
       <section class="console-card channel-card">
         <div class="card-head">
           <div class="channel-info">
-            <span class="label-kicker">CHANNEL 01</span>
-            <h2>Active Audio Stream</h2>
+            <span class="label-kicker">CHANNEL 01 • AUDIO OPERATIONS</span>
+            <h2>Active Speech Stream</h2>
           </div>
           <div class="channel-meta">
             <span class="meta-tag" id="codecBadge">CODEC: 48kHz HD</span>
             <span class="meta-tag" id="bandwidthBadge">BANDWIDTH: 20Hz - 20kHz</span>
             <span class="meta-tag" id="mosBadge">MOS: 4.8 / 5.0</span>
-            <span class="meta-tag" id="activeLangBadge">LANG: AUTO-DETECT INDIC</span>
+            <span class="meta-tag" id="activeLangBadge">LANG: AUTO-INDIC</span>
             <span class="meta-tag" id="micSensitivityBadge">MIC: +6dB BOOST</span>
             <span class="meta-tag" id="noiseBadge">AMBIENCE: CLEAN</span>
-            <span class="meta-tag">VOICE: DEVANSH (MALE)</span>
+            <span class="meta-tag">VOICE: DEVANSH</span>
           </div>
         </div>
 
@@ -103,7 +116,7 @@
           <div class="status-pulse-dot" id="statusDot"></div>
           <div class="status-details">
             <span class="status-main" id="stateText">READY (IDLE)</span>
-            <span class="status-desc" id="subtitleText">Microphone initialized. Click 'Connect Voice' to begin stream.</span>
+            <span class="status-desc" id="subtitleText">Microphone initialized. Click 'Start Live Call' or a scenario card to stream.</span>
           </div>
           <div class="bargein-display">
             <span class="bargein-label">BARGE-IN LATENCY</span>
@@ -111,20 +124,32 @@
           </div>
         </div>
 
-        <!-- Professional Studio Spectrum Meters -->
+        <!-- Dual-Track Audio Visualizer (Assistant Channel vs User Channel + Laser Cutoff) -->
         <div class="meter-stage">
           <div class="meter-readout">
-            <span>INPUT FREQUENCY (300Hz - 8kHz)</span>
-            <span id="meterDbDisplay">-42 dB</span>
+            <div class="meter-channels-legend">
+              <span class="legend-pill pill-ch-assistant">CH A: Devansh Output</span>
+              <span class="legend-pill pill-ch-user">CH B: User Mic Input</span>
+            </div>
+            <div class="meter-db-wrap">
+              <span class="db-label">ENERGY:</span>
+              <span id="meterDbDisplay" class="db-value">-42 dB</span>
+            </div>
           </div>
-          <canvas id="visualizerCanvas" width="640" height="140"></canvas>
+          <div class="canvas-wrapper">
+            <canvas id="visualizerCanvas" width="640" height="130"></canvas>
+            <!-- Preemption Cutoff Laser Line Marker (Rendered Dynamically) -->
+            <div class="preempt-laser-line" id="preemptLaserLine" style="display: none;">
+              <span class="laser-tag">🛑 PREEMPTION CUTOFF (&lt;5ms)</span>
+            </div>
+          </div>
         </div>
 
         <!-- Dedicated Language Switcher Pills -->
         <div class="lang-pills-cluster">
-          <span class="lang-pills-label">CONVERSATION LANGUAGE:</span>
+          <span class="lang-pills-label">CONVERSATION DIALECT:</span>
           <div class="lang-pills" id="langPills">
-            <button class="lang-pill active pill-auto" data-lang="auto" title="Zero-click automatic Indic code-switching: speak English, Hindi, Telugu, or Tamil and the assistant responds in the exact same language">
+            <button class="lang-pill active pill-auto" data-lang="auto" title="Sub-millisecond Indic code-switching: speak English, Hindi, Telugu, or Tamil and the assistant mirrors automatically">
               ⚡ Auto-Detect Indic
             </button>
             <button class="lang-pill" data-lang="en-IN">🇬🇧 English</button>
@@ -134,14 +159,14 @@
           </div>
         </div>
 
-        <!-- Bharat Telephony Acoustic Environment Simulator -->
+        <!-- Bharat Telephony Acoustic Presets -->
         <div class="telephony-presets-cluster">
           <span class="telephony-presets-label">BHARAT ACOUSTIC ENVIRONMENT:</span>
           <div class="telephony-pills" id="telephonyPills">
             <button class="tele-pill active" data-preset="hd" title="Wideband 48kHz pristine studio audio">
               <span class="tele-dot"></span> 🎙️ Studio HD (48kHz)
             </button>
-            <button class="tele-pill" data-preset="gsm" title="Real-world 8kHz GSM/PSTN bandpass (300Hz-3400Hz) + carbon mic saturation + 50Hz line hum">
+            <button class="tele-pill" data-preset="gsm" title="Real-world 8kHz GSM/PSTN bandpass (300Hz-3400Hz) + carbon saturation + 50Hz line hum">
               <span class="tele-dot"></span> 📞 2G Telephony (8kHz GSM)
             </button>
             <button class="tele-pill" data-preset="bazaar" title="Noisy Indian Mandi / Vegetable Market with scooter traffic (-18dB SNR)">
@@ -163,7 +188,7 @@
           </button>
 
           <!-- Preemptive Barge-In Interruption Button -->
-          <button id="interruptBtn" class="btn-console btn-bargein" disabled title="Interrupt assistant audio stream instantly">
+          <button id="interruptBtn" class="btn-console btn-bargein" disabled title="Interrupt assistant audio stream instantly (<50ms cutoff)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="6" y="6" width="12" height="12" rx="2"/>
             </svg>
@@ -180,24 +205,26 @@
           </button>
         </div>
 
-        <!-- Enterprise Bharat Scenarios -->
+        <!-- Enterprise Benchmark Scenario Cards Studio -->
         <div class="scenarios-section">
           <div class="section-title">
-            <span>ENTERPRISE BENCHMARK SCENARIOS</span>
-            <span class="section-sub">1-Click Test Prompts</span>
+            <span>ENTERPRISE BENCHMARK SCENARIO STUDIO</span>
+            <span class="section-sub">1-Click Live Test Prompts</span>
           </div>
           <div class="scenarios-grid" id="chipsRow">
-            <!-- Dynamically populated based on active language -->
+            <!-- Dynamically populated via app.js -->
           </div>
         </div>
       </section>
 
-      <!-- Right Column: Performance Telemetry & Live Call Log -->
+      <!-- ================================================================= -->
+      <!-- RIGHT COLUMN: TRANSACTION TICKET & TELEMETRY AUDIT               -->
+      <!-- ================================================================= -->
       <section class="console-card log-card">
         <div class="card-head">
           <div class="channel-info">
-            <span class="label-kicker">TELEMETRY & AUDIT</span>
-            <h2>Session Diagnostics</h2>
+            <span class="label-kicker">CHANNEL 02 • LEDGER & DIAGNOSTICS</span>
+            <h2>Session Diagnostics & State</h2>
           </div>
           <span class="session-id-tag" id="sessionIdBadge">SESSION #--</span>
         </div>
@@ -216,7 +243,7 @@
           </div>
           <div class="diag-tile">
             <span class="diag-label">STREAM RTT</span>
-            <span class="diag-value text-success" id="rttDisplay">-- ms</span>
+            <span class="diag-value text-success" id="rttDisplayTile">-- ms</span>
             <span class="diag-foot">WebSocket ping</span>
           </div>
           <div class="diag-tile">
@@ -226,7 +253,104 @@
           </div>
         </div>
 
-        <!-- Real-Time Full-Duplex Latency Waterfall -->
+        <!-- =============================================================== -->
+        <!-- HERO COMPONENT: BHARAT TRADE EXECUTION TICKET (LIVE STATE)      -->
+        <!-- =============================================================== -->
+        <div class="trade-ticket-card" id="transactionLedgerCard">
+          <!-- Background Security Watermark -->
+          <div class="ticket-watermark">APMC INDORE • VERIFIED STATE</div>
+
+          <!-- Ticket Header -->
+          <div class="ticket-header">
+            <div class="ticket-title-cluster">
+              <span class="ticket-kicker">ELECTRONIC TRADE EXECUTION SLIP</span>
+              <div class="ticket-headline">
+                <span class="ticket-icon">🏛️</span>
+                <h3>Bharat Transaction Ledger</h3>
+                <span class="tag-txn-id" id="txnIdTag">TXN: STANDBY</span>
+              </div>
+            </div>
+            <div class="ticket-status-cluster">
+              <span class="badge-txn badge-idle" id="txnStatusBadge">AWAITING TRADE</span>
+              <span class="ticket-time-tag" id="txnTimeTag">--:--:--</span>
+            </div>
+          </div>
+
+          <!-- Preemption Alert Banner (Shown during barge-in override) -->
+          <div class="txn-override-banner" id="txnOverrideBanner" style="display: none;">
+            <div class="banner-left">
+              <span class="override-flash-dot"></span>
+              <div class="override-msg">
+                <strong>VOICE BARGE-IN PREEMPTION APPLIED (&lt;5ms CUTOFF)</strong>
+                <span id="txnOverrideNote">Cancelled previous order mid-sentence</span>
+              </div>
+            </div>
+            <span class="preempt-budget-tag">🛑 PREEMPT: 3.8ms</span>
+          </div>
+
+          <!-- Monospace Financial Breakdown & Line Items with Strikethrough Diffing -->
+          <div class="ticket-body-grid">
+            <!-- Left Info Block -->
+            <div class="ticket-meta-block">
+              <div class="ticket-row">
+                <span class="row-label">COUNTERPARTY / APMC:</span>
+                <span class="row-value font-highlight" id="txnCounterparty">Indore APMC Mandi</span>
+              </div>
+              <div class="ticket-row">
+                <span class="row-label">CATEGORY / DESK:</span>
+                <span class="row-value" id="txnDomain">Mandi Agri-Trade Desk</span>
+              </div>
+              <div class="ticket-row">
+                <span class="row-label">QUANTITY / UNITS:</span>
+                <span class="row-value font-mono-val" id="txnQuantity">5 Quintal</span>
+              </div>
+              <div class="ticket-row">
+                <span class="row-label">BENCHMARK RATE:</span>
+                <span class="row-value font-mono-val" id="txnRate">Rs. 2,450 / Quintal</span>
+              </div>
+            </div>
+
+            <!-- Right Settlement Block with Strikethrough Diffing -->
+            <div class="ticket-settlement-block">
+              <div class="settlement-items-box">
+                <!-- Strikethrough Line Item (Previous Order when Overridden) -->
+                <div class="diff-item diff-old" id="diffOldOrder" style="display: none;">
+                  <span class="diff-name" id="diffOldName">Wheat (Gehun) 5 Qtl</span>
+                  <span class="diff-amt" id="diffOldAmt">Rs. 12,250</span>
+                </div>
+                <!-- Active / Overridden Line Item -->
+                <div class="diff-item diff-active" id="diffActiveOrder">
+                  <span class="diff-name" id="txnItem">Wheat (Gehun)</span>
+                  <span class="diff-amt font-emerald" id="diffActiveAmt">Rs. 12,250</span>
+                </div>
+              </div>
+
+              <!-- Grand Settlement Display -->
+              <div class="settlement-total-row">
+                <div class="total-label-box">
+                  <span class="total-kicker">NET SETTLEMENT RAASHI</span>
+                  <span class="total-sub">Deterministic APMC Pricing</span>
+                </div>
+                <div class="total-number-box">
+                  <span class="txn-total-value font-mono-val" id="txnTotal">Rs. 12,250</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Audit Trace Stream inside Ticket -->
+          <div class="ledger-audit-box">
+            <div class="audit-head">
+              <span>IMMUTABLE EXECUTION AUDIT TRAIL</span>
+              <span class="audit-badge" id="auditCountBadge">0 events</span>
+            </div>
+            <div class="audit-stream" id="txnAuditStream">
+              <div class="audit-item audit-init">Awaiting voice command to initiate trade ledger...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Latency Waterfall Telemetry Card -->
         <div class="latency-waterfall-card">
           <div class="waterfall-head">
             <div class="waterfall-title-row">
@@ -237,14 +361,14 @@
           </div>
 
           <div class="waterfall-metrics">
-            <!-- Row 1: Barge-In Interruption -->
+            <!-- Row 1: Barge-In Interruption Preemption -->
             <div class="metric-row">
               <div class="metric-info">
                 <span class="metric-tag tag-barge">BARGE-IN CUTOFF</span>
                 <span class="metric-name">Server Task Cancel + Audio Drop</span>
               </div>
               <div class="metric-bar-wrap">
-                <div class="metric-bar bar-barge" id="barBargeIn" style="width: 10%;"></div>
+                <div class="metric-bar bar-barge" id="barBargeIn" style="width: 8%;"></div>
               </div>
               <div class="metric-value text-red" id="valBargeIn">3.8 ms</div>
             </div>
@@ -253,7 +377,7 @@
             <div class="metric-row">
               <div class="metric-info">
                 <span class="metric-tag tag-llm">LLM REASONING</span>
-                <span class="metric-name">Gemini 3.5 Flash (Indic Reasoning)</span>
+                <span class="metric-name">Gemini Flash (Indic Reasoning Core)</span>
               </div>
               <div class="metric-bar-wrap">
                 <div class="metric-bar bar-llm" id="barLlm" style="width: 0%;"></div>
@@ -265,7 +389,7 @@
             <div class="metric-row">
               <div class="metric-info">
                 <span class="metric-tag tag-tts">TIMBRE SYNTHESIS</span>
-                <span class="metric-name">Gnani Timbre v3.0 (Devansh 48kHz)</span>
+                <span class="metric-name">Gnani Timbre v3.0 (Devansh 48kHz HD)</span>
               </div>
               <div class="metric-bar-wrap">
                 <div class="metric-bar bar-tts" id="barTts" style="width: 0%;"></div>
@@ -283,71 +407,6 @@
                 <div class="metric-bar bar-total" id="barTotal" style="width: 0%;"></div>
               </div>
               <div class="metric-value text-blue" id="valTotal">-- ms</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bharat Enterprise Live Transaction Ledger Card -->
-        <div class="transaction-ledger-card" id="transactionLedgerCard">
-          <div class="ledger-header">
-            <div class="ledger-title-group">
-              <span class="ledger-kicker">ENTERPRISE STATE MACHINE</span>
-              <div class="ledger-main-title">
-                <span class="ledger-icon">🏛️</span>
-                <h3>Bharat Transaction Ledger</h3>
-              </div>
-            </div>
-            <div class="ledger-status-group">
-              <span class="tag-txn-id" id="txnIdTag">TXN: STANDBY</span>
-              <span class="badge-txn badge-idle" id="txnStatusBadge">AWAITING TRADE</span>
-            </div>
-          </div>
-
-          <!-- Active Preemption Alert Banner -->
-          <div class="txn-override-banner" id="txnOverrideBanner" style="display: none;">
-            <span class="override-icon">⚡</span>
-            <div class="override-text">
-              <strong>VOICE BARGE-IN PREEMPTION APPLIED</strong>
-              <span id="txnOverrideNote">Cancelled previous in-flight trade</span>
-            </div>
-          </div>
-
-          <!-- Transaction Fields Grid -->
-          <div class="ledger-grid">
-            <div class="ledger-field">
-              <span class="field-label">DOMAIN / DESK</span>
-              <span class="field-value" id="txnDomain">Agri-Commodity / Mandi</span>
-            </div>
-            <div class="ledger-field">
-              <span class="field-label">COUNTERPARTY / APMC</span>
-              <span class="field-value highlight" id="txnCounterparty">Indore APMC Mandi</span>
-            </div>
-            <div class="ledger-field">
-              <span class="field-label">COMMODITY / ITEM</span>
-              <span class="field-value highlight" id="txnItem">Wheat (Gehun)</span>
-            </div>
-            <div class="ledger-field">
-              <span class="field-label">QUANTITY / UNITS</span>
-              <span class="field-value" id="txnQuantity">5 Quintal</span>
-            </div>
-            <div class="ledger-field">
-              <span class="field-label">UNIT BENCHMARK</span>
-              <span class="field-value" id="txnRate">Rs. 2,450 / Quintal</span>
-            </div>
-            <div class="ledger-field total-field">
-              <span class="field-label">SETTLEMENT AMOUNT</span>
-              <span class="field-value total-value" id="txnTotal">Rs. 12,250</span>
-            </div>
-          </div>
-
-          <!-- Live Audit Trace -->
-          <div class="ledger-audit-box">
-            <div class="audit-head">
-              <span>REAL-TIME AUDIT LOG</span>
-              <span class="audit-badge" id="auditCountBadge">0 events</span>
-            </div>
-            <div class="audit-stream" id="txnAuditStream">
-              <div class="audit-item audit-init">Awaiting voice command to initiate trade ledger...</div>
             </div>
           </div>
         </div>
@@ -375,7 +434,7 @@
             <div class="log-entry system-entry">
               <span class="entry-time">[00:00:00]</span>
               <span class="entry-badge">SYSTEM</span>
-              <p>DuplexVani Gateway active. Ready for streaming full-duplex session.</p>
+              <p>DuplexVani Enterprise Gateway active. Ready for streaming full-duplex session.</p>
             </div>
           </div>
 
@@ -397,14 +456,14 @@
       <div class="footer-left">
         <span>Great Indian AI Internship Challenge 2026</span>
         <span class="footer-divider">•</span>
-        <span>Built by Mohd Abdul Moid Sufiyan</span>
+        <span>Built by Mohd Abdul Moid Sufiyan (MJCET)</span>
       </div>
       <div class="footer-right">
         <span>STT: Gnani Prisma v3.0</span>
         <span class="footer-divider">•</span>
         <span>TTS: Gnani Timbre v3.0 (Devansh)</span>
         <span class="footer-divider">•</span>
-        <span>Barge-In: Sub-50ms Preemption</span>
+        <span>Preemption: Sub-50ms Barge-In</span>
       </div>
     </footer>
   </div>
