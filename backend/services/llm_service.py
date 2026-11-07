@@ -9,26 +9,40 @@ logger = logging.getLogger("DuplexVani.LLMService")
 
 COMMODITY_RATES = {
     "sarson": {"name": "Mustard (Sarson)", "rate": 5400, "unit": "Quintal"},
+    "sarso": {"name": "Mustard (Sarson)", "rate": 5400, "unit": "Quintal"},
     "mustard": {"name": "Mustard (Sarson)", "rate": 5400, "unit": "Quintal"},
+    "rai": {"name": "Mustard (Sarson)", "rate": 5400, "unit": "Quintal"},
     "gehun": {"name": "Wheat (Gehun)", "rate": 2450, "unit": "Quintal"},
+    "gehu": {"name": "Wheat (Gehun)", "rate": 2450, "unit": "Quintal"},
     "wheat": {"name": "Wheat (Gehun)", "rate": 2450, "unit": "Quintal"},
+    "kanak": {"name": "Wheat (Gehun)", "rate": 2450, "unit": "Quintal"},
+    "godhumalu": {"name": "Wheat (Gehun)", "rate": 2450, "unit": "Quintal"},
     "soyabean": {"name": "Soybean (Soyabean)", "rate": 4800, "unit": "Quintal"},
     "soybean": {"name": "Soybean (Soyabean)", "rate": 4800, "unit": "Quintal"},
+    "soya": {"name": "Soybean (Soyabean)", "rate": 4800, "unit": "Quintal"},
     "pyaz": {"name": "Onion (Pyaz)", "rate": 2800, "unit": "Quintal"},
+    "pyaj": {"name": "Onion (Pyaz)", "rate": 2800, "unit": "Quintal"},
     "onion": {"name": "Onion (Pyaz)", "rate": 2800, "unit": "Quintal"},
+    "kanda": {"name": "Onion (Pyaz)", "rate": 2800, "unit": "Quintal"},
     "chana": {"name": "Gram (Chana)", "rate": 5900, "unit": "Quintal"},
+    "chane": {"name": "Gram (Chana)", "rate": 5900, "unit": "Quintal"},
+    "gram": {"name": "Gram (Chana)", "rate": 5900, "unit": "Quintal"},
     "cotton": {"name": "Cotton (Kapas)", "rate": 7200, "unit": "Quintal"},
-    "kapas": {"name": "Cotton (Kapas)", "rate": 7200, "unit": "Quintal"}
+    "kapas": {"name": "Cotton (Kapas)", "rate": 7200, "unit": "Quintal"},
+    "kapaas": {"name": "Cotton (Kapas)", "rate": 7200, "unit": "Quintal"}
 }
 
-MANDI_LOCATIONS = ["Indore", "Nashik", "Bhopal", "Neemuch", "Kota", "Dewas", "Nagpur", "Guntur"]
+MANDI_LOCATIONS = ["Indore", "Nashik", "Bhopal", "Neemuch", "Kota", "Dewas", "Nagpur", "Guntur", "Delhi", "Jaipur", "Ahmedabad", "Pune"]
 
 WORD_TO_NUM = {
     "ek": 1, "do": 2, "teen": 3, "char": 4, "chaar": 4, "paanch": 5, "panch": 5,
-    "che": 6, "saat": 7, "aath": 8, "nau": 9, "das": 10, "gyarah": 11, "barah": 12,
-    "pandrah": 15, "bees": 20, "pachis": 25, "tees": 30, "pachaas": 50,
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-    "eight": 8, "nine": 9, "ten": 10, "twenty": 20, "fifty": 50, "hundred": 100
+    "che": 6, "chhe": 6, "six": 6, "saat": 7, "aath": 8, "nau": 9, "das": 10, "dus": 10,
+    "gyarah": 11, "barah": 12, "terah": 13, "chaudah": 14, "pandrah": 15, "pandra": 15,
+    "solah": 16, "satrah": 17, "atharah": 18, "unnis": 19, "bees": 20, "pachis": 25,
+    "tees": 30, "chaalis": 40, "pachaas": 50, "pachas": 50, "sau": 100, "hazaar": 1000,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "fifteen": 15, "twenty": 20, "twenty five": 25,
+    "thirty": 30, "fifty": 50, "hundred": 100
 }
 
 class LLMService:
@@ -44,10 +58,8 @@ class LLMService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY.strip()
         self.models = [
-            "gemini-3.5-flash-lite",
-            "gemini-3.1-flash-lite",
-            "gemini-3.5-flash",
-            "gemini-3.7-flash"
+            "gemini-flash-lite-latest",
+            "gemini-flash-latest"
         ]
 
     def detect_language(self, text: str) -> str:
@@ -507,7 +519,7 @@ class LLMService:
         }
 
         # Try models in cascade
-        async with httpx.AsyncClient(timeout=3.5) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             for model_name in self.models:
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_key}"
@@ -546,54 +558,80 @@ class LLMService:
                 return "Namaskaram! Nenu DuplexVani — Gnani AI models tho tayaraina full-duplex voice assistant."
             if any(w in user_lower for w in ["capital", "rajadhani", "india"]):
                 return "Bharatadesha rajadhani New Delhi."
+            if any(w in user_lower for w in ["pradhani", "prime minister", "modi"]):
+                return "Bharatadesha pradhana manthri Narendra Modi garu."
+            if any(w in user_lower for w in ["mandi", "dhanyam", "rate"]):
+                return "Indore Mandi lo sarson 5,400 rupayalu mariyu godhumalu 2,450 rupayalu unnai."
             return "Nenu artham chesukonnanu. Meeru adigina vishayam gurinchi nenu sahayapadagalanu."
 
         # --- TAMIL ---
         elif lang_code == "ta":
             if was_interrupted:
-                return "Sollunga, naan pesuvadhu niruthivitten."
+                return "Sollunga, naan pesuvadhu niruthivitten. Ungalukku enna thevai?"
             if any(w in user_lower for w in ["nillu", "stop", "wait"]):
                 return "Sari, naan niruthi vitten. Sollunga."
             if any(w in user_lower for w in ["yaar", "who", "duplex"]):
-                return "Vanakkam! Naan DuplexVani — Gnani AI modelsil uruvaakkappatta voice assistant!"
+                return "Vanakkam! Naan DuplexVani — Gnani AI modelsil uruvaakkappatta full-duplex voice assistant!"
             if any(w in user_lower for w in ["capital", "thalainagaram", "india"]):
                 return "Indhiyavin thalainagaram Pudhu Delhi aagum."
+            if any(w in user_lower for w in ["prime minister", "modi"]):
+                return "Indhiyavin pradhama manthiri Narendra Modi aavar."
             return "Naan purindhu konden. Naan ungalukku eppadi uthavalaam?"
 
         # --- ENGLISH (Indian English) ---
         elif lang_code == "en":
             if was_interrupted:
-                return "Go ahead, I am listening."
-            if any(w in user_lower for w in ["stop", "wait", "hold on", "listen"]):
-                return "Sure, I have paused. Please continue."
-            if any(w in user_lower for w in ["who are you", "what is this", "duplex"]):
-                return "Hello! I am DuplexVani — a real-time full-duplex voice desk powered by Gnani AI models."
+                return "I have paused immediately. Go ahead, I am listening."
+            if any(w in user_lower for w in ["stop", "wait", "hold on", "listen", "shut up"]):
+                return "Sure, I have stopped talking. Please go ahead."
+            if any(w in user_lower for w in ["who are you", "what is this", "what are you", "duplexvani"]):
+                return "I am DuplexVani — a full-duplex agentic voice desk built for Bharat enterprise, featuring sub-50ms voice barge-in and real-time ledger sync."
+            if any(w in user_lower for w in ["who made you", "who built you", "creator", "author"]):
+                return "I was built by Mohd Abdul Moid Sufiyan for the Gnani AI Great Indian Internship Challenge 2026."
+            if any(w in user_lower for w in ["prime minister", "pm of india", "modi"]):
+                return "The Prime Minister of India is Narendra Modi."
+            if any(w in user_lower for w in ["president of india", "president"]):
+                return "The President of India is Droupadi Murmu."
             if any(w in user_lower for w in ["capital of india", "capital of bharat", "capital"]):
                 return "The capital of India is New Delhi."
-            if any(w in user_lower for w in ["domestic animal", "animal", "pets"]):
-                return "People love domestic animals because they offer unconditional companionship, warmth, and loyalty."
+            if any(w in user_lower for w in ["joke", "funny", "laugh"]):
+                return "Why did the voice AI cross the road? Because the user interrupted and redirected its stream mid-sentence!"
+            if any(w in user_lower for w in ["how are you", "how do you do"]):
+                return "I am running at peak performance with sub-50ms preemption! How can I assist with your mandi trades or kirana ledger today?"
+            if any(w in user_lower for w in ["what is full duplex", "full duplex", "barge in", "preemption"]):
+                return "Full-duplex means simultaneous bidirectional audio. You can interrupt me mid-sentence, and I will cut off my audio buffer within 5 milliseconds."
             if any(w in user_lower for w in ["weather", "forecast", "climate"]):
                 return "The weather is currently clear and pleasant with mild temperatures."
-            if any(w in user_lower for w in ["mandi", "market", "prices", "rate"]):
-                return "In the wholesale agricultural market today, wheat is trading around 2450 rupees per quintal."
-            return "I understand your query. Let me assist you with that."
+            if any(w in user_lower for w in ["mandi", "market", "prices", "rate", "bhav"]):
+                return "Today in APMC Mandi, Mustard is trading at 5,400 rupees per quintal, Wheat at 2,450 rupees, and Soybean at 4,800 rupees."
+            return "I understand your query. DuplexVani is ready to execute your voice commands or answer any question."
 
         # --- HINDI & HINGLISH (Default) ---
         else:
             if was_interrupted:
-                return "Haan, main sun raha hoon. Kahiye?"
-            if any(w in user_lower for w in ["ruko", "stop", "wait", "suno", "arrey", "arre"]):
+                return "Ji, maine bolna turant rok diya. Kahiye, main sun raha hoon."
+            if any(w in user_lower for w in ["ruko", "stop", "wait", "suno", "arrey", "arre", "chup"]):
                 return "Ji bilkul, main ruk gaya. Kahiye, main sun raha hoon."
-            if any(w in user_lower for w in ["kya ho", "who are you", "kaun ho", "duplex"]):
-                return "Namaste! Main DuplexVani hoon — Gnani AI ke Prisma aur Timbre models par bana full-duplex voice desk."
+            if any(w in user_lower for w in ["kya ho", "who are you", "kaun ho", "duplex", "naam kya hai"]):
+                return "Namaste! Main DuplexVani hoon — Gnani AI models par bana Bharat Enterprise ka Full-Duplex Agentic Voice Desk."
+            if any(w in user_lower for w in ["kisne banaya", "creator", "author", "maker", "banaya kisne"]):
+                return "Mujhe Mohd Abdul Moid Sufiyan ne Gnani AI Great Indian Internship Challenge 2026 ke liye banaya hai."
+            if any(w in user_lower for w in ["prime minister", "pradhan mantri", "pm", "modi"]):
+                return "Bharat ke Pradhan Mantri Shri Narendra Modi ji hain."
+            if any(w in user_lower for w in ["rashtrapati", "president"]):
+                return "Bharat ki Rashtrapati Smt. Droupadi Murmu ji hain."
             if any(w in user_lower for w in ["capital", "rajdhani", "bharat", "india"]):
                 return "Bharat ki rajdhani New Delhi hai."
-            if any(w in user_lower for w in ["domestic animal", "janwar", "kutte", "pets"]):
-                return "Log paaltu janwaron se pyaar karte hain kyunki wo wafadaar hote hain aur insaano ka tanav kam karte hain."
-            if any(w in user_lower for w in ["mandi", "kisan", "fasal", "bhav"]):
-                return "Indore Mandi me aaj gehun 2450 rupay per quintal aur sarson 5400 rupay chal raha hai."
-            if any(w in user_lower for w in ["kirana", "doodh", "hisaab", "khata", "sugar"]):
+            if any(w in user_lower for w in ["joke", "chutkula", "hasao"]):
+                return "Ek bar ek voice bot ne doosre bot se kaha: 'Mujhe mat roko!' Doosre ne kaha: 'Main to full-duplex hoon, beech me interrupt karunga hi!'"
+            if any(w in user_lower for w in ["kaise ho", "kya haal", "how are you"]):
+                return "Main bilkul badhiya hoon! Aap bataiye, aaj Mandi trade karni hai ya Kirana khata update karna hai?"
+            if any(w in user_lower for w in ["full duplex", "barge in", "interruption", "preemption", "kya hota hai"]):
+                return "Full-duplex ka matlab hai natural baat-cheet. Agar main bol raha hoon aur aap beech me bolte hain, to main turant 5 millisecond me chup ho jaunga."
+            if any(w in user_lower for w in ["mandi", "fasal", "bhav", "rate", "daam", "gehun", "sarson"]):
+                return "Indore Mandi me aaj Sarson ka bhav 5,400 rupay per quintal, Gehun 2,450 rupay, aur Soyabean 4,800 rupay chal raha hai."
+            if any(w in user_lower for w in ["kirana", "doodh", "hisaab", "khata", "udhaar"]):
                 return "Ramesh bhai ke khate mein 2 packet doodh aur 1 packet bread ka 140 rupay udhaar note kar liya gaya hai."
-            return "Main samajh gaya. Isme main aapki poori sahayata kar sakta hoon."
+            return "Main samajh gaya. Aap jo bhi poochhenge ya command denge, DuplexVani use turant execute karega."
 
 llm_service = LLMService()

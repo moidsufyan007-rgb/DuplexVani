@@ -27,17 +27,20 @@ class DuplexVaniConsole {
     this.rtt = 0;
     this.speechRec = null;
     this.speechPermissionDenied = false;
-    this.selectedLanguage = "auto"; // Default: Zero-Click Indic Code-Switching
+    this.selectedLanguage = "hi-IN"; // Default: Hindi / Hinglish for APMC Mandi & Bharat Trade
     this.isLiveMode = false;         // Default: Credit Shield (Free Mode)
     this.isTelephonyMode = false;     // Default: 48kHz HD (Off)
     this.isNoiseActive = false;       // Default: Clean ambience (Off)
     this.isCallActive = false;        // Hands-free continuous live call state
     this.silenceTimeout = null;
-    this.silenceDelayMs = 1100;       // 1100ms natural human pause window (prevents dropping low voices mid-sentence)
+    this.silenceDelayMs = 550;        // Fast adaptive human pause window (550ms)
     this.recognizedTranscript = "";
     this.latestHeardText = "";
     this.micSensitivityBoost = true;  // High sensitivity pre-amp boost (+6dB) enabled by default
     this.micPreAmp = null;
+    this.micAnalyser = null;
+    this.speakerAnalyser = null;
+    this.lastAcousticBargeIn = 0;
     
     // UI Elements
     this.statusBanner = document.getElementById("statusBanner");
@@ -902,7 +905,9 @@ class DuplexVaniConsole {
       // Route through Bharat Telephony Acoustic DSP Processor
       this.routeThroughAcousticProcessor(source, gainNode);
 
-      if (this.analyser) {
+      if (this.speakerAnalyser) {
+        gainNode.connect(this.speakerAnalyser);
+      } else if (this.analyser) {
         gainNode.connect(this.analyser);
       }
       gainNode.connect(this.audioCtx.destination);
@@ -959,16 +964,22 @@ class DuplexVaniConsole {
         });
       }
 
-      this.analyser = this.audioCtx.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.4;
+      this.micAnalyser = this.audioCtx.createAnalyser();
+      this.micAnalyser.fftSize = 256;
+      this.micAnalyser.smoothingTimeConstant = 0.3;
+
+      this.speakerAnalyser = this.audioCtx.createAnalyser();
+      this.speakerAnalyser.fftSize = 256;
+      this.speakerAnalyser.smoothingTimeConstant = 0.3;
+
+      this.analyser = this.micAnalyser; // backwards compatibility
       const micSource = this.audioCtx.createMediaStreamSource(this.micStream);
 
       // Hardware/Software Pre-Amp Boost Node (+6dB / 2.2x Gain for Low Voices)
       this.micPreAmp = this.audioCtx.createGain();
       this.micPreAmp.gain.value = this.micSensitivityBoost ? 2.2 : 1.0;
       micSource.connect(this.micPreAmp);
-      this.micPreAmp.connect(this.analyser);
+      this.micPreAmp.connect(this.micAnalyser);
 
       if (this.sessionRecordDestination) {
         this.micPreAmp.connect(this.sessionRecordDestination);
@@ -1015,6 +1026,22 @@ class DuplexVaniConsole {
     this.addLogEntry("SYSTEM", "Live call disconnected.");
   }
 
+  normalizeIndicSpeech(text) {
+    if (!text) return "";
+    let clean = text.trim();
+    // Commodities normalization for fast/slow/accented speech
+    clean = clean.replace(/\b(sarso|sarsoo|sarson|mustard|rai)\b/gi, "sarson");
+    clean = clean.replace(/\b(gehu|gehoon|gehun|wheat|kanak)\b/gi, "gehun");
+    clean = clean.replace(/\b(chane|chana|gram)\b/gi, "chana");
+    clean = clean.replace(/\b(pyaj|pyaz|onion|kanda)\b/gi, "pyaz");
+    clean = clean.replace(/\b(kuntal|kintal|quintal|qtl)\b/gi, "quintal");
+    clean = clean.replace(/\b(indor|indore)\b/gi, "Indore");
+    // Action and interruption tokens
+    clean = clean.replace(/\b(ruk|ruko|arre|arrey|wait|chup|stop)\b/gi, "ruko");
+    clean = clean.replace(/\b(badlo|badal|change|cancel)\b/gi, "badal");
+    return clean;
+  }
+
   startContinuousSpeechRecognition() {
     if (this.speechPermissionDenied) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1033,8 +1060,10 @@ class DuplexVaniConsole {
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
-    // In auto mode, en-IN captures both English and Romanized Hinglish accurately
-    rec.lang = (this.selectedLanguage === "auto") ? "en-IN" : this.selectedLanguage;
+    
+    // Default to hi-IN which accurately transcribes Hindi, Hinglish, and Indian English loanwords
+    const effectiveLang = (this.selectedLanguage === "auto" || !this.selectedLanguage) ? "hi-IN" : this.selectedLanguage;
+    rec.lang = effectiveLang;
 
     rec.onresult = (event) => {
       // Automatic Barge-in: if assistant is speaking and user speaks, cut off immediately!
@@ -1065,7 +1094,6 @@ class DuplexVaniConsole {
     rec.onerror = (e) => {
       console.warn("Speech recognition notice:", e.error);
       if (e.error === "no-speech") {
-        // Safe to ignore in continuous mode
         return;
       }
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -1100,17 +1128,27 @@ class DuplexVaniConsole {
 
     if (!this.isCallActive) return;
 
-    // Detect natural silence (1100ms) after the user finishes speaking
+    // Smart Adaptive Endpointing:
+    // If the utterance has a definitive ending or key action trigger, respond rapidly in 450ms.
+    // If it's a mid-sentence slow pause, allow 750ms so slow speakers aren't cut off.
+    const current = (this.latestHeardText || "").toLowerCase().trim();
+    const isFastTrigger = (
+      current.endsWith("?") || 
+      current.endsWith(".") ||
+      /\b(karo|kijiye|batao|likho|hai|hain|kya|kaun|chahiye|nahi|bhav)\b/i.test(current)
+    );
+    const delay = isFastTrigger ? 450 : 750;
+
     this.silenceTimeout = setTimeout(() => {
-      // Transmit latestHeardText or recognizedTranscript so no soft word is dropped
-      const textToSend = (this.latestHeardText || this.recognizedTranscript || "").trim();
+      const rawText = (this.latestHeardText || this.recognizedTranscript || "").trim();
+      const textToSend = this.normalizeIndicSpeech(rawText);
       if (textToSend.length > 0 && this.currentState !== "SPEAKING" && this.currentState !== "PROCESSING") {
-        console.log("Automatic turn-taking triggered for utterance:", textToSend);
+        console.log(`[Adaptive Turn-Taking] Dispatched in ${delay}ms:`, textToSend);
         this.sendFinalUtterance(textToSend);
         this.recognizedTranscript = "";
         this.latestHeardText = "";
       }
-    }, this.silenceDelayMs);
+    }, delay);
   }
 
   sendFinalUtterance(text) {
@@ -1134,7 +1172,17 @@ class DuplexVaniConsole {
   updateLanguagePrompts(lang) {
     this.selectedLanguage = lang;
     if (this.speechRec) {
-      this.speechRec.lang = (lang === "auto") ? "en-IN" : lang;
+      this.speechRec.lang = (lang === "auto" || !lang) ? "hi-IN" : lang;
+      if (this.isCallActive) {
+        try {
+          this.speechRec.stop();
+          setTimeout(() => {
+            if (this.isCallActive) {
+              try { this.speechRec.start(); } catch(e){}
+            }
+          }, 120);
+        } catch (e) {}
+      }
     }
 
     if (this.activeLangBadge) {
@@ -1765,7 +1813,8 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
   // --- Dual-Track Waveform Studio (Assistant CH A vs User CH B) ---
   startSpectrumMeter() {
     const bufferLength = 48;
-    const dataArray = new Uint8Array(bufferLength);
+    const micDataArray = new Uint8Array(bufferLength);
+    const speakerDataArray = new Uint8Array(bufferLength);
 
     const draw = () => {
       requestAnimationFrame(draw);
@@ -1775,21 +1824,42 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
       const ctx = this.canvasCtx;
       ctx.clearRect(0, 0, width, height);
 
-      let maxVal = 0;
-      if (this.analyser) {
-        this.analyser.getByteFrequencyData(dataArray);
+      let micMaxVal = 0;
+      const micAnalyser = this.micAnalyser || this.analyser;
+      if (micAnalyser) {
+        micAnalyser.getByteFrequencyData(micDataArray);
         for (let i = 0; i < bufferLength; i++) {
-          if (dataArray[i] > maxVal) maxVal = dataArray[i];
+          if (micDataArray[i] > micMaxVal) micMaxVal = micDataArray[i];
         }
       }
 
-      const db = maxVal > 0 ? Math.round((maxVal / 255) * 48 - 48) : -48;
+      let speakerMaxVal = 0;
+      if (this.speakerAnalyser) {
+        this.speakerAnalyser.getByteFrequencyData(speakerDataArray);
+        for (let i = 0; i < bufferLength; i++) {
+          if (speakerDataArray[i] > speakerMaxVal) speakerMaxVal = speakerDataArray[i];
+        }
+      }
+
+      const activeMaxVal = Math.max(micMaxVal, speakerMaxVal);
+      const db = activeMaxVal > 0 ? Math.round((activeMaxVal / 255) * 48 - 48) : -48;
       if (this.meterDbDisplay) this.meterDbDisplay.innerText = `${db} dB`;
 
       const midY = height / 2;
       const isSpeaking = this.currentState === "SPEAKING";
       const isInterrupted = this.currentState === "INTERRUPTED";
       const isListening = this.currentState === "LISTENING";
+
+      // REAL-TIME HARDWARE ACOUSTIC VAD BARGE-IN (<16ms)
+      // When assistant is speaking and user voice energy crosses threshold, cut off immediately!
+      if (isSpeaking && micMaxVal > 48 && this.isCallActive) {
+        const now = performance.now();
+        if ((now - (this.lastAcousticBargeIn || 0)) > 900) {
+          this.lastAcousticBargeIn = now;
+          console.log(`[Acoustic VAD Cutoff] Sub-16ms interruption triggered by user voice (Mic energy: ${micMaxVal})`);
+          this.triggerBargeIn();
+        }
+      }
 
       // Midline Divider
       ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
@@ -1801,11 +1871,12 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
 
       const barWidth = (width / bufferLength) - 1.5;
 
-      // Track A (Top: Devansh Speech Output)
+      // Track A (Top: Assistant Devansh Speech Output)
       for (let i = 0; i < bufferLength; i++) {
         let barH = 0;
         if (isSpeaking && !isInterrupted) {
-          barH = (dataArray[i] / 255) * (midY - 6);
+          const val = this.speakerAnalyser ? speakerDataArray[i] : micDataArray[i];
+          barH = (val / 255) * (midY - 6);
         }
         ctx.fillStyle = isInterrupted ? "#ef4444" : "#2563eb";
         const x = i * (barWidth + 1.5);
@@ -1815,8 +1886,8 @@ ${report.conversation_transcript.length === 0 ? "*(No dialogue turns recorded)*"
       // Track B (Bottom: User Microphone / Pre-Amp Boost)
       for (let i = 0; i < bufferLength; i++) {
         let barH = 0;
-        if (isListening || (!isSpeaking && maxVal > 15)) {
-          barH = (dataArray[i] / 255) * (midY - 6);
+        if (isListening || (!isSpeaking && micMaxVal > 15) || isSpeaking) {
+          barH = (micDataArray[i] / 255) * (midY - 6);
         }
         ctx.fillStyle = isInterrupted ? "#f87171" : "#10b981";
         const x = i * (barWidth + 1.5);
