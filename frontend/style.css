@@ -80,7 +80,8 @@
 
 /* Hardware-accelerated scroll — never animate top/left/margin */
 html {
-  scroll-behavior: smooth;
+  /* Remove scroll-behavior:smooth — Lenis handles this. Both together = double-smooth jitter */
+  scroll-behavior: auto;
 }
 
 body.enterprise-theme {
@@ -130,7 +131,7 @@ body.enterprise-theme {
   box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
-  will-change: transform;
+  /* NO will-change on static element — only add it when GSAP is actively animating */
 }
 
 /* Subtle violet top glow line */
@@ -253,19 +254,16 @@ body.enterprise-theme {
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-out-expo),
-              background var(--duration-fast) ease,
+  transition: background var(--duration-fast) ease,
               border-color var(--duration-fast) ease,
-              box-shadow var(--duration-fast) ease;
+              box-shadow var(--duration-fast) ease,
+              color var(--duration-fast) ease;
   border: 1px solid transparent;
-  will-change: transform;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
-.pill-btn:hover {
-  transform: translate3d(0, -1px, 0);
-}
+/* No transform on hover — prevents layout shift */
 
 .pill-neutral {
   background: rgba(20, 28, 44, 0.8);
@@ -377,9 +375,9 @@ body.enterprise-theme {
   box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
-  will-change: transform;
-  transition: border-color var(--duration-base) var(--ease-out-expo),
-              box-shadow var(--duration-base) var(--ease-out-expo);
+  /* Only transition box-shadow — GSAP owns opacity/transform on entry */
+  transition: box-shadow var(--duration-base) var(--ease-out-expo),
+              border-color var(--duration-base) var(--ease-out-expo);
 }
 
 .console-card::before {
@@ -391,8 +389,7 @@ body.enterprise-theme {
 }
 
 .console-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: var(--shadow-card), 0 0 40px rgba(139, 92, 246, 0.06);
+  border-color: rgba(255, 255, 255, 0.11);
 }
 
 .card-head {
@@ -857,22 +854,20 @@ body.enterprise-theme {
   border-radius: 0.75rem;
   padding: 0.65rem 0.75rem;
   cursor: pointer;
-  /* Hardware-accelerated — only use transform, never top/left */
-  transition: transform var(--duration-fast) var(--ease-out-expo),
-              border-color var(--duration-fast) var(--ease-out-expo),
-              box-shadow var(--duration-fast) var(--ease-out-expo);
+  /* Only transition visual properties — no transform on hover to avoid layout jitter */
+  transition: border-color var(--duration-fast) ease,
+              box-shadow var(--duration-fast) ease,
+              background var(--duration-fast) ease;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   text-align: left;
-  will-change: transform;
 }
 
 .scenario-card:hover {
-  background: rgba(15, 22, 40, 0.8);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translate3d(0, -2px, 0);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 20px rgba(139,92,246,0.1);
+  background: rgba(15, 22, 40, 0.85);
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 16px rgba(139,92,246,0.08);
 }
 
 .scenario-card.barge-trigger {
@@ -881,8 +876,7 @@ body.enterprise-theme {
 
 .scenario-card.barge-trigger:hover {
   border-color: rgba(239, 68, 68, 0.75);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 20px rgba(239, 68, 68, 0.2);
-  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 16px rgba(239, 68, 68, 0.15);
 }
 
 .scenario-header {

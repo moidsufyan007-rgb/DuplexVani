@@ -509,113 +509,92 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-      // ── 1. Lenis Smooth Scroll ──────────────────────────────────
+      // ── 1. Lenis Smooth Scroll (single RAF loop, NOT doubled) ───
+      gsap.registerPlugin(ScrollTrigger, SplitText);
+
       const lenis = new Lenis({
-        duration: 1.2,
+        duration: 1.1,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: true,
+        prevent: (node) => node.classList.contains('chat-messages') ||
+                           node.classList.contains('transcript-log'),
       });
-      function raf(time) {
-        lenis.raf(time);
-        requestAnimationFrame(raf);
-      }
-      requestAnimationFrame(raf);
 
-      // Connect Lenis to GSAP ScrollTrigger
-      gsap.registerPlugin(ScrollTrigger, SplitText);
-      lenis.on('scroll', ScrollTrigger.update);
+      // Single GSAP ticker — do NOT also call requestAnimationFrame separately
       gsap.ticker.add((time) => { lenis.raf(time * 1000); });
       gsap.ticker.lagSmoothing(0);
+      lenis.on('scroll', ScrollTrigger.update);
 
-      // ── 2. Page Entry Animation ─────────────────────────────────
-      // Top bar slides down with fade
-      gsap.fromTo('.top-bar',
-        { y: -24, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, ease: 'power4.out', delay: 0.1 }
-      );
+      // ── 2. Page Entry Animation (opacity only — no Y shift on load) ──
+      // Use autoAlpha (opacity + visibility) — avoids transform layout jitter
+      gsap.set(['.top-bar', '.console-card', '.bottom-panels > *'], { autoAlpha: 0 });
 
-      // Cards stagger up with hardware translate3d
-      gsap.fromTo('.console-card',
-        { y: 40, opacity: 0, scale: 0.98 },
-        { y: 0, opacity: 1, scale: 1,
-          duration: 0.9, stagger: 0.12, ease: 'power4.out', delay: 0.25,
-          clearProps: 'transform' // cleanup after for perf
-        }
-      );
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-      // Bottom panels stagger
-      gsap.fromTo('.bottom-panels > *',
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1,
-          duration: 0.75, stagger: 0.1, ease: 'power3.out', delay: 0.5,
-          clearProps: 'transform'
-        }
-      );
+      tl.to('.top-bar', { autoAlpha: 1, duration: 0.5, delay: 0.05 })
+        .to('.console-card', { autoAlpha: 1, duration: 0.45, stagger: 0.1 }, '-=0.2')
+        .to('.bottom-panels > *', { autoAlpha: 1, duration: 0.4, stagger: 0.08 }, '-=0.2');
 
-      // ── 3. SplitText Kinetic Title Reveals ──────────────────────
-      // Animate each card heading with character stagger
-      document.querySelectorAll('.card-head h2').forEach((el, i) => {
-        try {
-          const split = new SplitText(el, { type: 'chars,words' });
-          gsap.fromTo(split.chars,
-            { y: 20, opacity: 0, rotateX: -45 },
-            { y: 0, opacity: 1, rotateX: 0,
-              duration: 0.6, stagger: 0.025, ease: 'power3.out',
-              delay: 0.4 + (i * 0.08),
-              onComplete: () => split.revert() // cleanup
-            }
-          );
-        } catch(e) { /* SplitText unavailable — graceful fallback */ }
+      // ── 3. SplitText Kinetic Title Reveals (after layout settles) ──
+      // Delay to ensure fonts loaded and layout stable
+      gsap.delayedCall(0.5, () => {
+        document.querySelectorAll('.card-head h2').forEach((el, i) => {
+          try {
+            const split = new SplitText(el, { type: 'chars', charsClass: 'split-char' });
+            gsap.fromTo(split.chars,
+              { opacity: 0, y: 12 },
+              { opacity: 1, y: 0,
+                duration: 0.5, stagger: 0.02, ease: 'power2.out',
+                delay: i * 0.06,
+                onComplete: () => split.revert()
+              }
+            );
+          } catch(e) { /* graceful fallback if SplitText unavailable */ }
+        });
       });
 
-      // Brand title kinetic reveal
-      try {
-        const brandSplit = new SplitText('h1', { type: 'chars' });
-        gsap.fromTo(brandSplit.chars,
-          { y: 30, opacity: 0 },
-          { y: 0, opacity: 1,
-            duration: 0.7, stagger: 0.04, ease: 'power4.out', delay: 0.15,
-            onComplete: () => brandSplit.revert()
-          }
-        );
-      } catch(e) {}
-
-      // ── 4. Live Capsule pulse entrance ──────────────────────────
+      // ── 4. Live Capsule entrance (scale only, stable) ───────────
       gsap.fromTo('#liveStreamCapsule',
-        { scale: 0.85, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.5)', delay: 0.6 }
+        { scale: 0.9, autoAlpha: 0 },
+        { scale: 1, autoAlpha: 1, duration: 0.5, ease: 'back.out(1.4)', delay: 0.6 }
       );
 
-      // ── 5. Metric cards micro-animation on value change ─────────
-      // Observe DOM changes on metric elements and flash-animate
+      // ── 5. Metric value flash on change ─────────────────────────
       const metricEls = document.querySelectorAll('.metric-value, .rtt-num, #rttDisplay');
       const metricObserver = new MutationObserver((mutations) => {
         mutations.forEach(m => {
           gsap.fromTo(m.target,
-            { scale: 1.15, color: '#a78bfa' },
-            { scale: 1, color: '', duration: 0.4, ease: 'power2.out' }
+            { color: '#a78bfa' },
+            { color: '', duration: 0.5, ease: 'power2.out', overwrite: 'auto' }
           );
         });
       });
-      metricEls.forEach(el => metricObserver.observe(el, { childList: true, characterData: true, subtree: true }));
+      metricEls.forEach(el =>
+        metricObserver.observe(el, { childList: true, characterData: true, subtree: true })
+      );
 
-      // ── 6. Barge-in flash effect ─────────────────────────────────
-      // Listen for interrupt events from app.js and flash the UI
+      // ── 6. Barge-in border flash ─────────────────────────────────
       window.addEventListener('duplexvani:barge_in', () => {
         gsap.fromTo('.status-banner',
-          { borderColor: 'rgba(239,68,68,0.8)', boxShadow: '0 0 30px rgba(239,68,68,0.3)' },
-          { borderColor: 'rgba(255,255,255,0.07)', boxShadow: 'none',
-            duration: 0.8, ease: 'power2.out' }
+          { borderColor: 'rgba(239,68,68,0.9)' },
+          { borderColor: 'rgba(255,255,255,0.07)', duration: 1.0,
+            ease: 'power2.out', overwrite: 'auto' }
         );
       });
 
-      // ── 7. Console card hover glow ───────────────────────────────
+      // ── 7. Card hover glow (box-shadow only — no transform) ──────
       document.querySelectorAll('.console-card').forEach(card => {
         card.addEventListener('mouseenter', () => {
-          gsap.to(card, { boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(139,92,246,0.08)', duration: 0.3 });
+          gsap.to(card, {
+            boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 50px rgba(139,92,246,0.09)',
+            duration: 0.3, overwrite: 'auto'
+          });
         });
         card.addEventListener('mouseleave', () => {
-          gsap.to(card, { boxShadow: '0 4px 24px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6)', duration: 0.4 });
+          gsap.to(card, {
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6)',
+            duration: 0.4, overwrite: 'auto'
+          });
         });
       });
 
