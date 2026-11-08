@@ -8,6 +8,7 @@
 [![LLM Brain](https://img.shields.io/badge/LLM%20Cascade-Gemini%20Flash%20%2B%20Deterministic%20Core-8b5cf6?style=for-the-badge&logo=google&logoColor=white)](#)
 [![Acoustics](https://img.shields.io/badge/Telephony%20DSP-8kHz%20GSM%20%7C%20-18dB%20Mandi%20Noise-f59e0b?style=for-the-badge&logo=airplayaudio&logoColor=white)](#)
 [![Tests](https://img.shields.io/badge/Automated%20Tests-10%2F10%20Passed%20(100%25)-16a34a?style=for-the-badge&logo=pytest&logoColor=white)](#-automated-testing--verification)
+[![Watch Demo](https://img.shields.io/badge/Watch%20Demo-v1.0.0%20Release%20(57s%20MP4)-ff4444?style=for-the-badge&logo=youtube&logoColor=white)](https://github.com/moidsufyan007-rgb/DuplexVani/releases/tag/v1.0.0)
 
 <p align="center">
   <strong>A production-grade, full-duplex conversational voice desk engineered for mission-critical Bharat enterprise commerce. Features real-time transactional state synchronization, sub-50ms voice barge-in preemption, zero-click Indic code-switching (Hindi / Hinglish / Telugu / Tamil / English), and real-world 8kHz GSM telephony acoustic simulation.</strong>
