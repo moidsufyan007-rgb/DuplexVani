@@ -7,7 +7,13 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- GSAP + ScrollTrigger + SplitText (100% free since Webflow acquisition) -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/SplitText.min.js"></script>
+  <!-- Lenis Smooth Scroll -->
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
 </head>
 <body class="enterprise-theme">
   <div class="desk-container">
@@ -495,5 +501,125 @@
   </div>
 
   <script src="app.js"></script>
+
+  <!-- ============================================================
+       GSAP Agency Animation Layer — @aaditya.web blueprint
+       Hardware-accelerated, 60fps, zero memory leaks
+       ============================================================ -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // ── 1. Lenis Smooth Scroll ──────────────────────────────────
+      const lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        smoothWheel: true,
+      });
+      function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      }
+      requestAnimationFrame(raf);
+
+      // Connect Lenis to GSAP ScrollTrigger
+      gsap.registerPlugin(ScrollTrigger, SplitText);
+      lenis.on('scroll', ScrollTrigger.update);
+      gsap.ticker.add((time) => { lenis.raf(time * 1000); });
+      gsap.ticker.lagSmoothing(0);
+
+      // ── 2. Page Entry Animation ─────────────────────────────────
+      // Top bar slides down with fade
+      gsap.fromTo('.top-bar',
+        { y: -24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.8, ease: 'power4.out', delay: 0.1 }
+      );
+
+      // Cards stagger up with hardware translate3d
+      gsap.fromTo('.console-card',
+        { y: 40, opacity: 0, scale: 0.98 },
+        { y: 0, opacity: 1, scale: 1,
+          duration: 0.9, stagger: 0.12, ease: 'power4.out', delay: 0.25,
+          clearProps: 'transform' // cleanup after for perf
+        }
+      );
+
+      // Bottom panels stagger
+      gsap.fromTo('.bottom-panels > *',
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1,
+          duration: 0.75, stagger: 0.1, ease: 'power3.out', delay: 0.5,
+          clearProps: 'transform'
+        }
+      );
+
+      // ── 3. SplitText Kinetic Title Reveals ──────────────────────
+      // Animate each card heading with character stagger
+      document.querySelectorAll('.card-head h2').forEach((el, i) => {
+        try {
+          const split = new SplitText(el, { type: 'chars,words' });
+          gsap.fromTo(split.chars,
+            { y: 20, opacity: 0, rotateX: -45 },
+            { y: 0, opacity: 1, rotateX: 0,
+              duration: 0.6, stagger: 0.025, ease: 'power3.out',
+              delay: 0.4 + (i * 0.08),
+              onComplete: () => split.revert() // cleanup
+            }
+          );
+        } catch(e) { /* SplitText unavailable — graceful fallback */ }
+      });
+
+      // Brand title kinetic reveal
+      try {
+        const brandSplit = new SplitText('h1', { type: 'chars' });
+        gsap.fromTo(brandSplit.chars,
+          { y: 30, opacity: 0 },
+          { y: 0, opacity: 1,
+            duration: 0.7, stagger: 0.04, ease: 'power4.out', delay: 0.15,
+            onComplete: () => brandSplit.revert()
+          }
+        );
+      } catch(e) {}
+
+      // ── 4. Live Capsule pulse entrance ──────────────────────────
+      gsap.fromTo('#liveStreamCapsule',
+        { scale: 0.85, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.5)', delay: 0.6 }
+      );
+
+      // ── 5. Metric cards micro-animation on value change ─────────
+      // Observe DOM changes on metric elements and flash-animate
+      const metricEls = document.querySelectorAll('.metric-value, .rtt-num, #rttDisplay');
+      const metricObserver = new MutationObserver((mutations) => {
+        mutations.forEach(m => {
+          gsap.fromTo(m.target,
+            { scale: 1.15, color: '#a78bfa' },
+            { scale: 1, color: '', duration: 0.4, ease: 'power2.out' }
+          );
+        });
+      });
+      metricEls.forEach(el => metricObserver.observe(el, { childList: true, characterData: true, subtree: true }));
+
+      // ── 6. Barge-in flash effect ─────────────────────────────────
+      // Listen for interrupt events from app.js and flash the UI
+      window.addEventListener('duplexvani:barge_in', () => {
+        gsap.fromTo('.status-banner',
+          { borderColor: 'rgba(239,68,68,0.8)', boxShadow: '0 0 30px rgba(239,68,68,0.3)' },
+          { borderColor: 'rgba(255,255,255,0.07)', boxShadow: 'none',
+            duration: 0.8, ease: 'power2.out' }
+        );
+      });
+
+      // ── 7. Console card hover glow ───────────────────────────────
+      document.querySelectorAll('.console-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          gsap.to(card, { boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(139,92,246,0.08)', duration: 0.3 });
+        });
+        card.addEventListener('mouseleave', () => {
+          gsap.to(card, { boxShadow: '0 4px 24px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6)', duration: 0.4 });
+        });
+      });
+
+    });
+  </script>
 </body>
 </html>
