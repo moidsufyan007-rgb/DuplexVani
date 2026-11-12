@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DuplexVani — Solution Pitch | Gnani AI Internship 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #fff;
+    color: #0f172a;
+    font-size: 11pt;
+    line-height: 1.55;
+    padding: 0;
+  }
+
+  .page {
+    max-width: 794px; /* A4 width */
+    margin: 0 auto;
+    padding: 40px 50px 36px;
+    min-height: 1123px; /* A4 height */
+    position: relative;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2.5px solid #0f172a;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+  }
+  .title-block h1 {
+    font-size: 22pt;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+  }
+  .title-block .tagline {
+    font-size: 10pt;
+    color: #64748b;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+  .badge-block {
+    text-align: right;
+    font-size: 9pt;
+    color: #475569;
+    line-height: 1.6;
+  }
+  .badge-block .challenge {
+    font-weight: 700;
+    color: #7c3aed;
+    font-size: 9.5pt;
+  }
+
+  /* ── Problem ── */
+  .problem-box {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 10pt;
+  }
+  .problem-box .label {
+    font-weight: 700;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #ef4444;
+    margin-bottom: 4px;
+  }
+  .problem-box p { color: #1e293b; }
+
+  /* ── Section ── */
+  .section-title {
+    font-size: 10.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #7c3aed;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+  }
+
+  /* ── Feature Grid ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .feature-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    padding: 9px 11px;
+  }
+  .feature-card .fc-title {
+    font-weight: 700;
+    font-size: 9.5pt;
+    color: #0f172a;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .feature-card .fc-title .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #7c3aed;
+    flex-shrink: 0;
+  }
+  .feature-card p {
+    font-size: 8.5pt;
+    color: #475569;
+    line-height: 1.45;
+  }
+  .feature-card.red .dot { background: #ef4444; }
+  .feature-card.blue .dot { background: #2563eb; }
+  .feature-card.green .dot { background: #10b981; }
+  .feature-card.amber .dot { background: #f59e0b; }
+
+  /* ── Architecture ── */
+  .arch-box {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8pt;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+  .arch-box .hl { color: #a78bfa; font-weight: 500; }
+  .arch-box .hl2 { color: #34d399; }
+  .arch-box .hl3 { color: #60a5fa; }
+  .arch-box .hl4 { color: #f87171; }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    text-align: center;
+    background: #f1f5f9;
+    border-radius: 7px;
+    padding: 10px 8px;
+    border: 1px solid #e2e8f0;
+  }
+  .stat-card .stat-num {
+    font-size: 17pt;
+    font-weight: 800;
+    color: #7c3aed;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .stat-card .stat-label {
+    font-size: 7.5pt;
+    color: #64748b;
+    margin-top: 3px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  /* ── Links ── */
+  .links-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+  .link-chip {
+    background: #7c3aed;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .link-chip.outline {
+    background: #fff;
+    color: #7c3aed;
+    border: 1.5px solid #7c3aed;
+  }
+  .link-chip.dark {
+    background: #0f172a;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    position: absolute;
+    bottom: 24px;
+    left: 50px;
+    right: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 10px;
+    font-size: 8pt;
+    color: #94a3b8;
+  }
+  .footer .stack-tags {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 7.5pt;
+    color: #475569;
+    font-weight: 500;
+  }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 32px 44px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="title-block">
+      <h1>DuplexVani</h1>
+      <div class="tagline">Full-Duplex Agentic Voice Desk for Bharat Enterprise</div>
+    </div>
+    <div class="badge-block">
+      <div class="challenge">Gnani AI Internship Challenge 2026</div>
+      <div>Mohd Abdul Moid Sufiyan &nbsp;·&nbsp; MJCET, Hyderabad</div>
+      <div>Solo Participant &nbsp;·&nbsp; github.com/moidsufyan007-rgb/DuplexVani</div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <div class="problem-box">
+    <div class="label">🔴 The Problem</div>
+    <p>India's 7,000+ APMC mandis and 12 million kirana stores run entirely on voice — not apps, not forms. Existing voice bots are <strong>half-duplex</strong>: they stop listening when they speak. The moment a trader tries to interrupt, correct a price, or change an order mid-sentence, the bot either mishears, ignores, or restarts. For real Bharat commerce — noisy mandis, 8kHz phone lines, Hinglish dialects — this fails completely.</p>
+  </div>
+
+  <!-- SOLUTION -->
+  <div class="section-title">✅ The Solution</div>
+  <div class="feature-grid">
+    <div class="feature-card red">
+      <div class="fc-title"><span class="dot"></span> Sub-16ms Barge-In Preemption</div>
+      <p>Web Audio API energy VAD detects interruption in a single 16ms frame. asyncio.Task.cancel() stops the AI mid-sentence instantly — no lag, no overlap, no restart.</p>
+    </div>
+    <div class="feature-card blue">
+      <div class="fc-title"><span class="dot"></span> APMC Mandi Trade State Machine</div>
+      <p>7-state deterministic engine: IDLE → COMMODITY → QUANTITY → PRICE → CONFIRMED → EXECUTED. LLM extracts intent; state machine enforces correctness. AI cannot corrupt a trade.</p>
+    </div>
+    <div class="feature-card green">
+      <div class="fc-title"><span class="dot"></span> Gnani AI Voice Stack</div>
+      <p>Gnani Prisma v3.0 STT + Timbre v3.0 TTS — optimized for 8kHz GSM telephony and Hindi / Hinglish / Telugu code-switching out of the box. No language selection needed.</p>
+    </div>
+    <div class="feature-card amber">
+      <div class="fc-title"><span class="dot"></span> Zero Literacy Barrier</div>
+      <p>Phonetic normalization handles "do sau kilo sarso", "teen hazaar rate do". Farmers and kirana owners book trades, check rates, and manage credit entirely by voice.</p>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section-title">🏗️ Architecture</div>
+  <div class="arch-box">
+    <span class="hl4">[User Voice]</span> → <span class="hl">Gnani Prisma STT</span> → <span class="hl3">Gemini Flash LLM</span> (intent only) → <span class="hl2">Trade State Machine</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+    <span class="hl4">[User Hears]</span> ← <span class="hl">Gnani Timbre TTS</span> ← Response Generator ← State Transition Output<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hl4">Sub-16ms VAD Barge-In</span> interrupts this pipeline at ANY point
+  </div>
+
+  <!-- STATS -->
+  <div class="section-title">📊 By The Numbers</div>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num">&lt;16</div>
+      <div class="stat-label">ms barge-in<br>preemption</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">10/10</div>
+      <div class="stat-label">automated<br>tests passing</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">7</div>
+      <div class="stat-label">trade states<br>(deterministic)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">57s</div>
+      <div class="stat-label">full demo,<br>no cuts</div>
+    </div>
+  </div>
+
+  <!-- LINKS -->
+  <div class="section-title">🔗 Project Links</div>
+  <div class="links-row">
+    <a class="link-chip dark" href="https://github.com/moidsufyan007-rgb/DuplexVani">
+      ⌥ GitHub Repo
+    </a>
+    <a class="link-chip" href="https://github.com/moidsufyan007-rgb/DuplexVani/releases/tag/v1.0.0">
+      ▶ Demo Video (v1.0.0 Release)
+    </a>
+    <a class="link-chip outline" href="https://github.com/moidsufyan007-rgb/DuplexVani/releases/download/v1.0.0/DuplexVani_Full_Conversation_Demo.mp4">
+      ⬇ Direct MP4 Download
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="stack-tags">
+      <span class="tag">FastAPI</span>
+      <span class="tag">WebSocket</span>
+      <span class="tag">Gnani Vachana API</span>
+      <span class="tag">Gemini Flash</span>
+      <span class="tag">Web Audio API</span>
+      <span class="tag">Python asyncio</span>
+      <span class="tag">GSAP</span>
+    </div>
+    <div>Built in &lt;10 days · Solo · Gnani AI × Google Gemini</div>
+  </div>
+
+</div>
+</body>
+</html>
